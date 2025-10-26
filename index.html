@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Умный Блокнот</title>
+    <!-- Version 1.0 - All-in-one build -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -67,14 +68,8 @@
       .dark .markdown-content li.task-list-item input[type="checkbox"]:checked::before { color: #0f172a; }
       .dark .markdown-content li.task-list-item.done { color: #64748b; }
     </style>
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
-      }
-    }
-    </script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   </head>
   <body>
@@ -246,7 +241,7 @@
       );
       const Cog6ToothIcon = ({ className = 'w-6 h-6' }) => (
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.26.716.53 1.003l.823.823c.374.374.88.554 1.395.45l1.27-.21c.542-.09.993.256.993.796v2.593c0 .54-.45.986-.993.986l-1.27.21c-.515.104-1.02.276-1.395.65l-.823.823c-.27.287-.467.629-.53 1.003l-.213 1.282c-.09.541-.56.939-1.11.939h-2.593c-.55 0-1.02-.398-1.11-.939l-.213-1.281c-.063-.374-.26-.716-.53-1.003l-.823-.823c-.374-.374-.88-.554-1.395-.45l-1.27.21c-.542.09-.993-.256-.993-.796V8.34c0-.54.45-.986.993.986l1.27-.21c.515-.104 1.02-.276 1.395-.65l.823-.823c.27-.287.467-.629-.53-1.003l.213-1.282Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.26.716.53 1.003l.823.823c.374.374.88.554 1.395.45l1.27-.21c.542-.09.993.256.993.796v2.593c0 .54-.45.986-.993.986l-1.27.21c-.515.104-1.02.276-1.395.65l-.823.823c-.27.287-.467.629-.53 1.003l-.213 1.282c-.09.541-.56.939-1.11.939h-2.593c-.55 0-1.02-.398-1.11-.939l-.213-1.281c-.063-.374-.26-.716-.53-1.003l-.823-.823c-.374-.374-.88-.554-1.395-.45l-1.27.21c-.542.09-.993-.256-.993-.796V8.34c0-.54.45-.986.993.986l1.27-.21c.515-.104 1.02-.276 1.395-.65l.823.823c.27-.287.467.629-.53-1.003l.213-1.282Z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
           </svg>
       );
@@ -436,1014 +431,55 @@
               </div>
           );
       };
-
-      // App.js
-      // The main App component and all sub-components are defined here directly
-      // All imports are removed since the components are now in the same scope.
-
-      const calculateNextDueDate = (reminder, lastCheckTime) => {
-          if (!reminder) return null;
-
-          const sortedTimes = reminder.times
-              .map(t => {
-                  const [h, m] = t.split(':').map(Number);
-                  return { h, m };
-              })
-              .sort((a, b) => a.h * 60 + a.m - (b.h * 60 + b.m));
-
-          let searchDate = new Date(lastCheckTime);
-          searchDate.setHours(0, 0, 0, 0);
-          
-          const startDate = new Date(reminder.startDate);
-          startDate.setHours(0,0,0,0);
-
-          for (let i = 0; i < 730; i++) { 
-              if (searchDate.getTime() >= startDate.getTime()) {
-                   let isValidDay = false;
-                   switch (reminder.type) {
-                      case 'daily':
-                          isValidDay = true;
-                          break;
-                      case 'weekly':
-                          isValidDay = reminder.daysOfWeek?.includes(searchDate.getDay()) ?? false;
-                          break;
-                      case 'monthly':
-                          isValidDay = searchDate.getDate() === new Date(reminder.startDate).getDate();
-                          break;
-                      case 'single':
-                          isValidDay = searchDate.getTime() === startDate.getTime();
-                          break;
-                   }
-
-                   if (isValidDay) {
-                      for (const time of sortedTimes) {
-                          let dueDate = new Date(searchDate);
-                          dueDate.setHours(time.h, time.m, 0, 0);
-
-                          if (dueDate.getTime() > lastCheckTime) {
-                              if (reminder.endDate && dueDate.getTime() > reminder.endDate) {
-                                  return null; 
-                              }
-                              return dueDate.getTime();
-                          }
-                      }
-                   }
-              }
-             
-              searchDate.setDate(searchDate.getDate() + 1);
-          }
-
-          return null;
-      };
-
-      const parseMarkdownWithChecklists = (markdown, noteId) => {
-          const rawHtml = window.marked.parse(markdown, { gfm: true });
-          let checklistItemIndex = -1;
-          const processedHtml = rawHtml.replace(/<li class="task-list-item">/g, (match) => {
-              checklistItemIndex++;
-              return `<li class="task-list-item" data-note-id="${noteId}" data-item-index="${checklistItemIndex}">`;
-          }).replace(/<input type="checkbox" disabled="">/g, (match) => {
-              return match.replace(' disabled=""', '');
-          }).replace(/<li class="task-list-item" data-note-id="(.+?)" data-item-index="(.+?)"><input type="checkbox" checked="">/g, (match) => {
-              return match.replace('<li class="task-list-item"', '<li class="task-list-item done"');
-          });
-          const sanitizedHtml = window.DOMPurify.sanitize(processedHtml, {
-              ADD_ATTR: ['data-note-id', 'data-item-index'],
-          });
-          return { __html: sanitizedHtml };
-      };
-
-      const App = () => {
-        const [notes, setNotes] = useLocalStorage('notes', []);
-        const [categories, setCategories] = useLocalStorage('categories', []);
-        const [templates, setTemplates] = useLocalStorage('templates', []);
-        const [activeToast, setActiveToast] = useState(null);
-        const [view, setView] = useState('LIST');
-        const [currentNote, setCurrentNote] = useState(null);
-        const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
-        const [newCategoryName, setNewCategoryName] = useState('');
-        const [editingCategoryId, setEditingCategoryId] = useState(null);
-        const [editedCategoryName, setEditedCategoryName] = useState('');
-        const [activeFilter, setActiveFilter] = useState('ALL');
-        const [searchQuery, setSearchQuery] = useState('');
-        const [sortOrder, setSortOrder] = useState('updatedAt_desc');
-        const [noteToTrash, setNoteToTrash] = useState(null);
-        const [noteToDelete, setNoteToDelete] = useState(null);
-        const [isDeleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
-        const [isImportModalOpen, setImportModalOpen] = useState(false);
-        const importFileInputRef = useRef(null);
-        const [dataToImport, setDataToImport] = useState(null);
-        const [isSelectionMode, setSelectionMode] = useState(false);
-        const [selectedNoteIds, setSelectedNoteIds] = useState([]);
-        const [isDeleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false);
-        const [isClearTrashModalOpen, setClearTrashModalOpen] = useState(false);
-        const [pinHash, setPinHash] = useLocalStorage('smart-notepad-pin', null);
-        const [isUnlocked, setIsUnlocked] = useState(!pinHash);
-        const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
-        const [isTemplateModalOpen, setTemplateModalOpen] = useState(false);
-        const osTheme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        const [theme, setTheme] = useLocalStorage('theme', osTheme);
-        
-        // ... (The rest of the App.js code, including all sub-components, is pasted here directly)
-        // ... I will paste the full content of App.js here from the prompt.
-        
-        useEffect(() => {
-          const root = window.document.documentElement;
-          if (theme === 'dark') {
-            root.classList.add('dark');
-          } else {
-            root.classList.remove('dark');
-          }
-        }, [theme]);
-
-        useEffect(() => {
-          const isMigrated = localStorage.getItem('smart-notepad-reminder-migrated-v2');
-          if (isMigrated) return;
-
-          const notesToMigrate = notes.some(n => n.reminderAt);
-
-          if (notesToMigrate) {
-              const migratedNotes = notes.map(note => {
-                  const oldNote = note;
-                  let newNotePart = {};
-
-                  if (oldNote.reminderAt) {
-                      const reminderDate = new Date(oldNote.reminderAt);
-                      const newReminder = {
-                          type: 'single',
-                          startDate: reminderDate.getTime(),
-                          times: [`${String(reminderDate.getHours()).padStart(2, '0')}:${String(reminderDate.getMinutes()).padStart(2, '0')}`],
-                          nextDueDate: reminderDate.getTime(),
-                          endDate: null,
-                      };
-                      newNotePart.reminder = newReminder;
-                  } else {
-                      newNotePart.reminder = note.reminder || null;
-                  }
-
-                  if (!note.journal) {
-                      newNotePart.journal = [];
-                  }
-                  
-                  const { reminderAt, ...restOfNote } = oldNote;
-
-                  return { ...restOfNote, ...newNotePart };
-              });
-              setNotes(migratedNotes);
-              showToast('Напоминания обновлены до нового формата!', 'info');
-          }
-          localStorage.setItem('smart-notepad-reminder-migrated-v2', 'true');
-        }, []);
-
-        useEffect(() => {
-          if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
-          }
-          
-          const intervalId = setInterval(() => {
-              const now = Date.now();
-              let notesChanged = false;
-              const updatedNotes = [...notes];
-
-              updatedNotes.forEach((note, index) => {
-                  if (note.reminder && note.reminder.nextDueDate && note.reminder.nextDueDate <= now) {
-                      if (Notification.permission === 'granted') {
-                          new Notification(`Напоминание: ${note.title}`, {
-                              body: note.content.substring(0, 100) + (note.content.length > 100 ? '...' : ''),
-                          });
-                      }
-                      const newNextDueDate = calculateNextDueDate(note.reminder, now);
-                      updatedNotes[index] = {
-                          ...note,
-                          reminder: {
-                              ...note.reminder,
-                              nextDueDate: newNextDueDate,
-                          },
-                          updatedAt: now,
-                      };
-                      notesChanged = true;
-                  }
-              });
-
-              if (notesChanged) {
-                  setNotes(updatedNotes);
-                  showToast('Сработало напоминание!', 'info');
-              }
-          }, 30000);
-
-          return () => clearInterval(intervalId);
-        }, [notes, setNotes]);
-
-        useEffect(() => {
-          const handleUrlImport = () => {
-              try {
-                  const hash = window.location.hash;
-                  if (hash.startsWith('#/import-note/')) {
-                      const encodedData = hash.substring('#/import-note/'.length);
-                      const decodedJson = atob(decodeURIComponent(encodedData));
-                      const noteData = JSON.parse(decodedJson);
-
-                      if (noteData.title && typeof noteData.content !== 'undefined') {
-                           const now = Date.now();
-                           const newNote = {
-                              id: now.toString(),
-                              title: noteData.title,
-                              content: noteData.content,
-                              color: noteData.color || null,
-                              createdAt: now,
-                              updatedAt: now,
-                              isFavorite: false,
-                              isPinned: false,
-                              categoryId: null,
-                              reminder: null,
-                              journal: [],
-                              deletedAt: null,
-                           };
-                           setNotes(prevNotes => [newNote, ...prevNotes]);
-                           showToast('Заметка успешно импортирована!', 'success');
-                           
-                           window.history.replaceState(null, '', window.location.pathname + window.location.search);
-                      }
-                  }
-              } catch (e) {
-                  console.error("Failed to import note from URL", e);
-                  showToast('Не удалось импортировать заметку по ссылке.', 'error');
-              }
-          };
-          handleUrlImport();
-        }, [setNotes]);
-
-        const showToast = (message, type = 'info') => {
-          setActiveToast({ id: Date.now(), message, type });
-        };
-        
-        const hashPin = async (pin) => {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(pin);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        };
-
-        const handleSaveNote = (noteData) => {
-          const now = Date.now();
-          
-          if (noteData.reminder && Notification.permission === 'default') {
-            Notification.requestPermission().then(permission => {
-              if (permission === 'denied') {
-                showToast('Уведомления заблокированы. Вы не получите напоминание.', 'error');
-              }
-            });
-          } else if (noteData.reminder && Notification.permission === 'denied') {
-              showToast('Уведомления заблокированы. Включите их в настройках браузера.', 'error');
-          }
-          
-          let processedReminder = noteData.reminder;
-          if (processedReminder) {
-              const nextDueDate = calculateNextDueDate(processedReminder, Date.now());
-              processedReminder = { ...processedReminder, nextDueDate };
-          }
-
-          if (currentNote) {
-            setNotes(notes.map(n => n.id === currentNote.id ? { ...n, ...noteData, reminder: processedReminder, updatedAt: now } : n));
-            showToast('Заметка обновлена', 'success');
-          } else {
-            const newNote = {
-              id: now.toString(),
-              ...noteData,
-              reminder: processedReminder,
-              createdAt: now,
-              updatedAt: now,
-              isPinned: false,
-              deletedAt: null,
-            };
-            setNotes([newNote, ...notes]);
-            showToast('Заметка создана', 'success');
-          }
-          setView('LIST');
-          setCurrentNote(null);
-        };
-        
-        const handleMoveToTrash = (id) => {
-          setNoteToTrash(id);
-        };
-
-        const confirmMoveToTrash = () => {
-          if (!noteToTrash) return;
-          setNotes(notes.map(n => n.id === noteToTrash ? { ...n, deletedAt: Date.now(), isPinned: false } : n));
-          showToast('Заметка перемещена в корзину', 'info');
-          setNoteToTrash(null);
-        };
-        
-        const handleRestoreNote = (id) => {
-          setNotes(notes.map(n => n.id === id ? { ...n, deletedAt: null } : n));
-          showToast('Заметка восстановлена', 'success');
-        };
-        
-        const handleDeletePermanently = (id) => {
-          setNoteToDelete(id);
-        };
-        
-        const confirmDeletePermanently = () => {
-          if (!noteToDelete) return;
-          setNotes(notes.filter(n => n.id !== noteToDelete));
-          showToast('Заметка удалена навсегда', 'error');
-          setNoteToDelete(null);
-        };
-
-        const handleEmptyTrash = () => {
-          setNotes(notes.filter(n => !n.deletedAt));
-          showToast('Корзина очищена', 'error');
-          setClearTrashModalOpen(false);
-        };
-
-        const handleToggleFavorite = (id) => {
-          setNotes(notes.map(n => {
-            if (n.id === id) {
-              const isNowFavorite = !n.isFavorite;
-              return { ...n, isFavorite: isNowFavorite, categoryId: isNowFavorite ? n.categoryId : null };
-            }
-            return n;
-          }));
-        };
-        
-        const handleTogglePin = (id) => {
-          setNotes(notes.map(n => n.id === id ? { ...n, isPinned: !n.isPinned } : n));
-        };
-        
-        const handleToggleChecklistItem = (noteId, itemIndex) => {
-              setNotes(prevNotes => {
-                  const noteToUpdate = prevNotes.find(n => n.id === noteId);
-                  if (!noteToUpdate) return prevNotes;
-
-                  const lines = noteToUpdate.content.split('\n');
-                  let currentChecklistItem = -1;
-                  const newLines = lines.map(line => {
-                      if (line.trim().startsWith('- [ ]') || line.trim().startsWith('- [x]')) {
-                          currentChecklistItem++;
-                          if (currentChecklistItem === itemIndex) {
-                              return line.includes('[ ]') ? line.replace('[ ]', '[x]') : line.replace('[x]', '[ ]');
-                          }
-                      }
-                      return line;
-                  });
-
-                  return prevNotes.map(n => 
-                      n.id === noteId 
-                          ? { ...n, content: newLines.join('\n'), updatedAt: Date.now() } 
-                          : n
-                  );
-              });
-          };
-
-        const handleChangeCategory = (noteId, categoryId) => {
-            setNotes(notes.map(n => n.id === noteId ? { ...n, categoryId: categoryId } : n));
-        };
-
-        const handleCreateCategory = () => {
-          if (newCategoryName.trim() === '') {
-            showToast('Название категории не может быть пустым', 'error');
-            return;
-          }
-          const newCategory = { id: Date.now().toString(), name: newCategoryName.trim() };
-          setCategories([...categories, newCategory]);
-          setNewCategoryName('');
-          showToast('Категория создана', 'success');
-        };
-
-        const handleDeleteCategory = (id) => {
-          setNotes(notes.map(n => n.categoryId === id ? { ...n, categoryId: null } : n));
-          setCategories(categories.filter(c => c.id !== id));
-          showToast('Категория удалена', 'error');
-        };
-
-        const startEditCategory = (category) => {
-          setEditingCategoryId(category.id);
-          setEditedCategoryName(category.name);
-        };
-
-        const cancelEditCategory = () => {
-            setEditingCategoryId(null);
-            setEditedCategoryName('');
-        };
-
-        const handleUpdateCategory = () => {
-            if (!editingCategoryId || editedCategoryName.trim() === '') {
-                showToast('Название категории не может быть пустым', 'error');
-                return;
-            }
-            setCategories(categories.map(c => c.id === editingCategoryId ? { ...c, name: editedCategoryName.trim() } : c));
-            showToast('Категория обновлена', 'success');
-            cancelEditCategory();
-        };
-
-        const handleSaveTemplate = (templateData) => {
-          if (templateData.title.trim() === '') {
-              showToast('Название шаблона не может быть пустым', 'error');
-              return false;
-          }
-          if (templateData.id) {
-              setTemplates(templates.map(t => t.id === templateData.id ? { ...t, title: templateData.title, content: templateData.content } : t));
-              showToast('Шаблон обновлен', 'success');
-          } else {
-              const newTemplate = {
-                  id: Date.now().toString(),
-                  title: templateData.title.trim(),
-                  content: templateData.content
-              };
-              setTemplates([...templates, newTemplate]);
-              showToast('Шаблон создан', 'success');
-          }
-          return true;
-        };
-
-        const handleDeleteTemplate = (id) => {
-            setTemplates(templates.filter(t => t.id !== id));
-            showToast('Шаблон удален', 'error');
-        };
-
-        const openEditor = (note) => {
-          setCurrentNote(note);
-          setView('EDITOR');
-        };
-        
-        const navigateTo = (targetView) => {
-          setView(targetView);
-          setSelectionMode(false);
-          setSelectedNoteIds([]);
-        };
-
-        const handleExportData = () => {
-          try {
-            const data = JSON.stringify({ notes, categories, templates, theme }, null, 2);
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `smart-notepad-backup-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showToast('Данные успешно экспортированы!', 'success');
-          } catch (error) {
-            console.error('Export failed:', error);
-            showToast('Ошибка при экспорте данных.', 'error');
-          }
-        };
-
-        const handleImportClick = () => {
-          importFileInputRef.current?.click();
-        };
-
-        const handleImportFileChange = (event) => {
-          const file = event.target.files?.[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            try {
-              const text = e.target?.result;
-              if (typeof text !== 'string') throw new Error('File is not a text file');
-              const parsedData = JSON.parse(text);
-
-              if (Array.isArray(parsedData.notes) && Array.isArray(parsedData.categories)) {
-                const notesWithDefaults = parsedData.notes.map((n) => ({
-                    id: n.id || Date.now().toString(),
-                    title: n.title || '',
-                    content: n.content || '',
-                    createdAt: n.createdAt || Date.now(),
-                    updatedAt: n.updatedAt || Date.now(),
-                    isFavorite: n.isFavorite ?? false,
-                    categoryId: n.categoryId ?? null,
-                    isPinned: n.isPinned ?? false,
-                    color: n.color ?? null,
-                    reminder: n.reminder ?? null,
-                    journal: n.journal ?? [],
-                    deletedAt: n.deletedAt ?? null,
-                }));
-                const templatesWithDefaults = (parsedData.templates || []).map((t) => ({
-                    id: t.id || Date.now().toString(),
-                    title: t.title || 'Без названия',
-                    content: t.content || '',
-                }));
-                
-                const themeFromImport = parsedData.theme === 'light' ? 'light' : 'dark';
-                setDataToImport({ notes: notesWithDefaults, categories: parsedData.categories, templates: templatesWithDefaults, theme: themeFromImport });
-                setImportModalOpen(true);
-              } else {
-                throw new Error('Invalid file structure');
-              }
-            } catch (error) {
-              console.error('Import failed:', error);
-              showToast('Ошибка: Неверный формат файла.', 'error');
-            } finally {
-              if (importFileInputRef.current) {
-                importFileInputRef.current.value = '';
-              }
-            }
-          };
-          reader.readAsText(file);
-        };
-
-        const confirmImportData = () => {
-          if (dataToImport) {
-              setNotes(dataToImport.notes);
-              setCategories(dataToImport.categories);
-              setTemplates(dataToImport.templates);
-              setTheme(dataToImport.theme);
-              showToast('Данные успешно импортированы!', 'success');
-          }
-          setImportModalOpen(false);
-          setDataToImport(null);
-        };
-        
-        const handleToggleSelectionMode = () => {
-          setSelectionMode(prev => !prev);
-          setSelectedNoteIds([]);
-        };
-
-        const handleSelectNote = (id) => {
-          if (!isSelectionMode) return;
-          setSelectedNoteIds(prev =>
-            prev.includes(id)
-              ? prev.filter(noteId => noteId !== id)
-              : [...prev, id]
-          );
-        };
-
-        const confirmDeleteSelected = () => {
-          const count = selectedNoteIds.length;
-          
-          if (view === 'TRASH') {
-              setNotes(notes.filter(n => !selectedNoteIds.includes(n.id)));
-          } else {
-              const now = Date.now();
-              setNotes(notes.map(n => selectedNoteIds.includes(n.id) ? {...n, deletedAt: now, isPinned: false} : n));
-          }
-          
-          let message = '';
-          const lastDigit = count % 10;
-          const lastTwoDigits = count % 100;
-
-          if (lastDigit === 1 && lastTwoDigits !== 11) {
-              message = `${count} заметка ${view === 'TRASH' ? 'удалена' : 'перемещена в корзину'}`;
-          } else if ([2, 3, 4].includes(lastDigit) && ![12, 13, 14].includes(lastTwoDigits)) {
-              message = `${count} заметки ${view === 'TRASH' ? 'удалены' : 'перемещены в корзину'}`;
-          } else {
-              message = `${count} заметок ${view === 'TRASH' ? 'удалено' : 'перемещено в корзину'}`;
-          }
-
-          showToast(message, 'error');
-          setDeleteSelectedModalOpen(false);
-          setSelectionMode(false);
-          setSelectedNoteIds([]);
-        };
-
-        const confirmDeleteAllActive = () => {
-          const now = Date.now();
-          setNotes(notes.map(n => !n.deletedAt ? { ...n, deletedAt: now, isPinned: false } : n));
-          showToast('Все заметки перемещены в корзину', 'info');
-          setDeleteAllModalOpen(false);
-        };
-
-        const activeNotes = useMemo(() => notes.filter(n => !n.deletedAt), [notes]);
-        const trashedNotes = useMemo(() => {
-          const sorted = notes.filter(n => n.deletedAt);
-          sorted.sort((a,b) => (b.deletedAt || 0) - (a.deletedAt || 0));
-          return sorted;
-        }, [notes]);
-
-
-        const filteredNotes = useMemo(() => {
-          const sortNotes = (notesToSort) => {
-            const sorted = [...notesToSort];
-            switch (sortOrder) {
-              case 'updatedAt_desc': sorted.sort((a, b) => b.updatedAt - a.updatedAt); break;
-              case 'updatedAt_asc': sorted.sort((a, b) => a.updatedAt - b.updatedAt); break;
-              case 'createdAt_desc': sorted.sort((a, b) => b.createdAt - a.createdAt); break;
-              case 'createdAt_asc': sorted.sort((a, b) => a.createdAt - b.createdAt); break;
-              case 'title_asc': sorted.sort((a, b) => a.title.localeCompare(b.title)); break;
-              case 'title_desc': sorted.sort((a, b) => b.title.localeCompare(a.title)); break;
-            }
-            return sorted;
-          };
-          
-          let notesToDisplay = activeNotes;
-          if (activeFilter === 'FAVORITES') {
-            notesToDisplay = activeNotes.filter(n => n.isFavorite);
-          }
-
-          if (searchQuery.trim() !== '') {
-              notesToDisplay = notesToDisplay.filter(note => 
-                  note.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                  note.content.toLowerCase().includes(searchQuery.toLowerCase())
-              );
-          }
-          
-          const pinnedNotes = notesToDisplay.filter(n => n.isPinned);
-          const unpinnedNotes = notesToDisplay.filter(n => !n.isPinned);
-
-          return [...sortNotes(pinnedNotes), ...sortNotes(unpinnedNotes)];
-
-        }, [activeNotes, activeFilter, searchQuery, sortOrder]);
-
-        const favoritesByCategory = useMemo(() => {
-          if (activeFilter !== 'FAVORITES') return [];
-          
-          const grouped = [];
-          const uncategorized = [];
-
-          const categoryMap = new Map(categories.map(c => [c.id, c]));
-
-          const notesForGrouping = filteredNotes.filter(n => n.isFavorite);
-
-          for (const note of notesForGrouping) {
-              if (note.categoryId && categoryMap.has(note.categoryId)) {
-                const category = categoryMap.get(note.categoryId);
-                let group = grouped.find(g => g.category?.id === category.id);
-                if (!group) {
-                  group = { category, notes: [] };
-                  grouped.push(group);
-                }
-                group.notes.push(note);
-              } else {
-                uncategorized.push(note);
-              }
-          }
-          
-          grouped.sort((a, b) => a.category.name.localeCompare(b.category.name));
-
-          if (uncategorized.length > 0) {
-            grouped.push({ category: null, notes: uncategorized });
-          }
-
-          return grouped;
-        }, [filteredNotes, categories, activeFilter]);
-
-        if (!isUnlocked) {
-            return <LockScreen pinHash={pinHash} onUnlock={() => setIsUnlocked(true)} hashFn={hashPin} />;
-        }
-
-        return (
-          <div className="min-h-screen bg-white dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-100">
-            <div className="container mx-auto max-w-3xl p-4">
-              {view === 'LIST' && (
-                <ListView
-                  notes={filteredNotes}
-                  categories={categories}
-                  activeFilter={activeFilter}
-                  favoritesByCategory={favoritesByCategory}
-                  setActiveFilter={setActiveFilter}
-                  onEdit={openEditor}
-                  onDelete={handleMoveToTrash}
-                  onToggleFavorite={handleToggleFavorite}
-                  onTogglePin={handleTogglePin}
-                  onChangeCategory={handleChangeCategory}
-                  onOpenCategoryModal={() => setCategoryModalOpen(true)}
-                  onOpenSettingsModal={() => setSettingsModalOpen(true)}
-                  onOpenTemplateModal={() => setTemplateModalOpen(true)}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  sortOrder={sortOrder}
-                  onSortChange={setSortOrder}
-                  onExport={handleExportData}
-                  onImport={handleImportClick}
-                  isSelectionMode={isSelectionMode}
-                  selectedNoteIds={selectedNoteIds}
-                  onToggleSelectionMode={handleToggleSelectionMode}
-                  onSelectNote={handleSelectNote}
-                  onDeleteAll={() => setDeleteAllModalOpen(true)}
-                  onNavigate={navigateTo}
-                  trashedCount={trashedNotes.length}
-                  onToggleChecklistItem={handleToggleChecklistItem}
-                />
-              )}
-              {view === 'TRASH' && (
-                 <TrashView
-                   notes={trashedNotes}
-                   onRestore={handleRestoreNote}
-                   onDelete={handleDeletePermanently}
-                   onEmptyTrash={() => setClearTrashModalOpen(true)}
-                   onNavigate={navigateTo}
-                   isSelectionMode={isSelectionMode}
-                   selectedNoteIds={selectedNoteIds}
-                   onToggleSelectionMode={handleToggleSelectionMode}
-                   onSelectNote={handleSelectNote}
-                   onDeleteSelected={() => setDeleteSelectedModalOpen(true)}
-                 />
-              )}
-              {view === 'EDITOR' && (
-                <NoteEditor
-                  note={currentNote}
-                  categories={categories}
-                  templates={templates}
-                  onSave={handleSaveNote}
-                  onCancel={() => { navigateTo('LIST'); setCurrentNote(null); }}
-                  theme={theme}
-                  showToast={showToast}
-                />
-              )}
-              
-              <input type="file" ref={importFileInputRef} onChange={handleImportFileChange} className="hidden" accept="application/json" />
-
-              <TemplateManagerModal 
-                isOpen={isTemplateModalOpen}
-                onClose={() => setTemplateModalOpen(false)}
-                templates={templates}
-                onSave={handleSaveTemplate}
-                onDelete={handleDeleteTemplate}
-              />
-
-              <Modal title="Управление категориями" isOpen={isCategoryModalOpen} onClose={() => { setCategoryModalOpen(false); cancelEditCategory(); }}>
-                <div className="space-y-4">
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder="Новая категория..."
-                      className="flex-grow bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
-                    />
-                    <button onClick={handleCreateCategory} className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-500 text-white font-bold p-2 rounded-md transition-colors">
-                      <PlusIcon className="w-5 h-5"/>
-                    </button>
-                  </div>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {categories.length > 0 ? categories.map(cat => (
-                      <div key={cat.id} className="flex justify-between items-center bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
-                         {editingCategoryId === cat.id ? (
-                            <>
-                              <input
-                                type="text"
-                                value={editedCategoryName}
-                                onChange={(e) => setEditedCategoryName(e.target.value)}
-                                className="flex-grow bg-white dark:bg-slate-600 text-slate-900 dark:text-white rounded-md px-2 py-1 mr-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                autoFocus
-                                onKeyDown={(e) => e.key === 'Enter' && handleUpdateCategory()}
-                              />
-                              <div className="flex space-x-1">
-                                <button onClick={handleUpdateCategory} className="text-green-500 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300 p-1">
-                                  <CheckIcon className="w-5 h-5"/>
-                                </button>
-                                <button onClick={cancelEditCategory} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white p-1">
-                                  <XMarkIcon className="w-5 h-5"/>
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <span className="truncate pr-2">{cat.name}</span>
-                              <div className="flex space-x-1 flex-shrink-0">
-                                <button onClick={() => startEditCategory(cat)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 p-1">
-                                  <PencilIcon className="w-5 h-5"/>
-                                </button>
-                                <button onClick={() => handleDeleteCategory(cat.id)} className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 p-1">
-                                  <TrashIcon className="w-5 h-5"/>
-                                </button>
-                              </div>
-                            </>
-                          )}
-                      </div>
-                    )) : (
-                      <p className="text-slate-500 dark:text-slate-400 text-center">Категорий пока нет.</p>
-                    )}
-                  </div>
-                </div>
-              </Modal>
-              
-               <SettingsModal 
-                  isOpen={isSettingsModalOpen} 
-                  onClose={() => setSettingsModalOpen(false)}
-                  pinHash={pinHash}
-                  setPinHash={setPinHash}
-                  hashFn={hashPin}
-                  showToast={showToast}
-                  theme={theme}
-                  setTheme={setTheme}
-              />
-              
-              <Modal title="Переместить в корзину?" isOpen={noteToTrash !== null} onClose={() => setNoteToTrash(null)}>
-                <div className="text-slate-600 dark:text-slate-300">
-                  <p>Вы уверены, что хотите переместить эту заметку в корзину?</p>
-                  <div className="flex justify-end space-x-4 mt-6">
-                    <button 
-                      onClick={() => setNoteToTrash(null)}
-                      className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
-                    >
-                      Отмена
-                    </button>
-                    <button
-                      onClick={confirmMoveToTrash}
-                      className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
-                    >
-                      Переместить
-                    </button>
-                  </div>
-                </div>
-              </Modal>
-              
-              <Modal title="Удалить навсегда?" isOpen={noteToDelete !== null} onClose={() => setNoteToDelete(null)}>
-                <div className="text-slate-600 dark:text-slate-300">
-                  <p>Заметка будет удалена навсегда. Это действие нельзя отменить.</p>
-                  <div className="flex justify-end space-x-4 mt-6">
-                    <button 
-                      onClick={() => setNoteToDelete(null)}
-                      className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
-                    >
-                      Отмена
-                    </button>
-                    <button
-                      onClick={confirmDeletePermanently}
-                      className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                </div>
-              </Modal>
-              
-               <Modal title="Подтвердите действие" isOpen={isDeleteSelectedModalOpen} onClose={() => setDeleteSelectedModalOpen(false)}>
-                  <div className="text-slate-600 dark:text-slate-300">
-                      <p>Вы уверены, что хотите {view === 'TRASH' ? 'навсегда удалить' : 'переместить в корзину'} {selectedNoteIds.length} {(() => {
-                          const count = selectedNoteIds.length;
-                          const lastDigit = count % 10;
-                          const lastTwoDigits = count % 100;
-                          if (lastDigit === 1 && lastTwoDigits !== 11) return 'заметку';
-                          if ([2, 3, 4].includes(lastDigit) && ![12, 13, 14].includes(lastTwoDigits)) return 'заметки';
-                          return 'заметок';
-                      })()}?</p>
-                      {view === 'TRASH' && <p className="text-sm text-yellow-500 dark:text-yellow-400 mt-2">Это действие необратимо.</p>}
-                      <div className="flex justify-end space-x-4 mt-6">
-                      <button 
-                          onClick={() => setDeleteSelectedModalOpen(false)}
-                          className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
-                      >
-                          Отмена
-                      </button>
-                      <button
-                          onClick={confirmDeleteSelected}
-                          className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
-                      >
-                          {view === 'TRASH' ? 'Удалить' : 'Переместить'}
-                      </button>
-                      </div>
-                  </div>
-              </Modal>
-
-              <Modal title="Переместить все в корзину?" isOpen={isDeleteAllModalOpen} onClose={() => setDeleteAllModalOpen(false)}>
-                  <div className="text-slate-600 dark:text-slate-300">
-                      <p className="mb-2">Вы уверены, что хотите переместить <strong className="text-red-500 dark:text-red-400">все активные</strong> заметки в корзину?</p>
-                      <div className="flex justify-end space-x-4 mt-6">
-                      <button 
-                          onClick={() => setDeleteAllModalOpen(false)}
-                          className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
-                      >
-                          Отмена
-                      </button>
-                      <button
-                          onClick={confirmDeleteAllActive}
-                          className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
-                      >
-                          Переместить все
-                      </button>
-                      </div>
-                  </div>
-              </Modal>
-              
-              <Modal title="Очистить корзину?" isOpen={isClearTrashModalOpen} onClose={() => setClearTrashModalOpen(false)}>
-                  <div className="text-slate-600 dark:text-slate-300">
-                      <p className="mb-2">Вы уверены, что хотите <strong className="text-red-500 dark:text-red-400">навсегда удалить все</strong> заметки из корзины?</p>
-                      <p className="text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-100/50 dark:bg-yellow-900/50 p-3 rounded-md">Это действие необратимо. Все данные из корзины будут потеряны.</p>
-                      <div className="flex justify-end space-x-4 mt-6">
-                      <button 
-                          onClick={() => setClearTrashModalOpen(false)}
-                          className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
-                      >
-                          Отмена
-                      </button>
-                      <button
-                          onClick={handleEmptyTrash}
-                          className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
-                      >
-                          Очистить корзину
-                      </button>
-                      </div>
-                  </div>
-              </Modal>
-
-               <Modal title="Импорт данных" isOpen={isImportModalOpen} onClose={() => setImportModalOpen(false)}>
-                  <div className="text-slate-600 dark:text-slate-300">
-                      <p className="mb-2">Вы уверены, что хотите импортировать данные?</p>
-                      <p className="text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-100/50 dark:bg-yellow-900/50 p-3 rounded-md">Внимание: Текущие заметки и категории будут полностью заменены данными из файла.</p>
-                      <div className="flex justify-end space-x-4 mt-6">
-                      <button 
-                          onClick={() => { setImportModalOpen(false); setDataToImport(null); }}
-                          className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
-                      >
-                          Отмена
-                      </button>
-                      <button
-                          onClick={confirmImportData}
-                          className="px-4 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors"
-                      >
-                          Импортировать
-                      </button>
-                      </div>
-                  </div>
-              </Modal>
-
-              <Toast toast={activeToast} onDismiss={() => setActiveToast(null)} />
-              
-              {view === 'LIST' && !isSelectionMode && (
-                 <button onClick={() => openEditor(null)} className="fixed bottom-6 right-6 bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-500 text-white rounded-full p-4 shadow-lg transform transition-transform hover:scale-110" aria-label="Создать заметку">
-                   <PlusIcon className="w-8 h-8"/>
-                 </button>
-              )}
-
-              {isSelectionMode && (
-                  <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-t border-slate-200 dark:border-slate-700 shadow-lg z-20 animate-fade-in-up">
-                      <div className="container mx-auto max-w-3xl p-4 flex justify-between items-center">
-                          <button onClick={handleToggleSelectionMode} className="flex items-center space-x-2 px-4 py-2 rounded-md bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors">
-                              <XMarkIcon className="w-5 h-5"/>
-                              <span>Отмена</span>
-                          </button>
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedNoteIds.length} выбрано</span>
-                          <button 
-                              onClick={() => setDeleteSelectedModalOpen(true)} 
-                              disabled={selectedNoteIds.length === 0} 
-                              className="flex items-center space-x-2 px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors disabled:bg-red-400 dark:disabled:bg-red-800 disabled:cursor-not-allowed"
-                          >
-                              <TrashIcon className="w-5 h-5"/>
-                              <span>{view === 'TRASH' ? 'Удалить' : 'В корзину'}</span>
-                          </button>
-                      </div>
-                  </div>
-              )}
-            </div>
-          </div>
-        );
-      };
       
       const ActionsDropdown = ({ onOpenCategoryModal, onOpenTemplateModal, onImport, onExport, onDeleteAll }) => {
-          const [isOpen, setIsOpen] = useState(false);
-          const dropdownRef = useRef(null);
-          const buttonRef = useRef(null);
+        const [isOpen, setIsOpen] = useState(false);
+        const dropdownRef = useRef(null);
 
-          useEffect(() => {
-              const handleClickOutside = (event) => {
-                  if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                      setIsOpen(false);
-                  }
-              };
-              document.addEventListener("mousedown", handleClickOutside);
-              return () => {
-                  document.removeEventListener("mousedown", handleClickOutside);
-              };
-          }, [dropdownRef]);
+        useEffect(() => {
+            const handleClickOutside = (event) => {
+                if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                    setIsOpen(false);
+                }
+            };
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => {
+                document.removeEventListener("mousedown", handleClickOutside);
+            };
+        }, []);
 
-          const handleAction = (action) => {
-              action();
-              setIsOpen(false);
-          };
+        const menuItems = [
+            { label: 'Управлять категориями', icon: <FolderPlusIcon className="w-5 h-5 mr-3"/>, action: onOpenCategoryModal },
+            { label: 'Управлять шаблонами', icon: <DocumentDuplicateIcon className="w-5 h-5 mr-3"/>, action: onOpenTemplateModal },
+            { label: 'Импортировать данные', icon: <ArrowUpTrayIcon className="w-5 h-5 mr-3"/>, action: onImport },
+            { label: 'Экспортировать данные', icon: <ArrowDownTrayIcon className="w-5 h-5 mr-3"/>, action: onExport },
+            { label: 'Убрать все в корзину', icon: <ArchiveBoxXMarkIcon className="w-5 h-5 mr-3 text-red-500 dark:text-red-400"/>, action: onDeleteAll, isDestructive: true },
+        ];
 
-          return (
-              <div ref={dropdownRef} className="relative">
-                  <button ref={buttonRef} onClick={() => setIsOpen(!isOpen)} className="p-2 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors" title="Больше действий">
-                      <EllipsisVerticalIcon className="w-6 h-6" />
-                  </button>
-                  {isOpen && (
-                      <div
-                          className="origin-top-right absolute right-0 mt-2 w-52 sm:w-56 rounded-md shadow-lg bg-white dark:bg-slate-700 ring-1 ring-black ring-opacity-5 z-20"
-                      >
-                          <div className="py-1" role="menu" aria-orientation="vertical">
-                              <a href="#" onClick={(e) => {e.preventDefault(); handleAction(onOpenTemplateModal);}} className="flex items-center space-x-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600" role="menuitem">
-                                  <DocumentDuplicateIcon className="w-5 h-5" />
-                                  <span>Шаблоны</span>
-                              </a>
-                              <a href="#" onClick={(e) => {e.preventDefault(); handleAction(onOpenCategoryModal);}} className="flex items-center space-x-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600" role="menuitem">
-                                  <FolderPlusIcon className="w-5 h-5" />
-                                  <span>Категории</span>
-                              </a>
-                              <a href="#" onClick={(e) => {e.preventDefault(); handleAction(onImport);}} className="flex items-center space-x-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600" role="menuitem">
-                                  <ArrowUpTrayIcon className="w-5 h-5" />
-                                  <span>Импорт</span>
-                              </a>
-                              <a href="#" onClick={(e) => {e.preventDefault(); handleAction(onExport);}} className="flex items-center space-x-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600" role="menuitem">
-                                  <ArrowDownTrayIcon className="w-5 h-5" />
-                                  <span>Экспорт</span>
-                              </a>
-                              <div className="border-t border-slate-200 dark:border-slate-600 my-1"></div>
-                              <a href="#" onClick={(e) => {e.preventDefault(); handleAction(onDeleteAll);}} className="flex items-center space-x-3 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-600" role="menuitem">
-                                  <ArchiveBoxXMarkIcon className="w-5 h-5" />
-                                  <span>Переместить все в корзину</span>
-                              </a>
-                          </div>
-                      </div>
-                  )}
-              </div>
-          );
+        return (
+            <div ref={dropdownRef} className="relative">
+                <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors" title="Дополнительные действия">
+                    <EllipsisVerticalIcon className="w-6 h-6" />
+                </button>
+                {isOpen && (
+                    <div className="origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg bg-white dark:bg-slate-700 ring-1 ring-black ring-opacity-5 z-20">
+                        <div className="py-1">
+                            {menuItems.map(item => (
+                                <a
+                                    key={item.label}
+                                    href="#"
+                                    onClick={(e) => { e.preventDefault(); item.action(); setIsOpen(false); }}
+                                    className={`flex items-center px-4 py-2 text-sm ${item.isDestructive ? 'text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-600'}`}
+                                >
+                                    {item.icon}
+                                    {item.label}
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
       };
 
       const ListView = ({ notes, categories, activeFilter, favoritesByCategory, setActiveFilter, onEdit, onDelete, onToggleFavorite, onTogglePin, onChangeCategory, onOpenCategoryModal, onOpenSettingsModal, onOpenTemplateModal, searchQuery, onSearchChange, sortOrder, onSortChange, onExport, onImport, isSelectionMode, selectedNoteIds, onToggleSelectionMode, onSelectNote, onDeleteAll, onNavigate, trashedCount, onToggleChecklistItem }) => {
@@ -2020,8 +1056,6 @@
           }
         }
         
-        // ... The rest of the huge NoteEditor component is pasted here
-        // This is a simplified representation. The full code is very long.
         return (
           <div className="animate-fade-in">
               <header className="relative flex items-center justify-between py-4 mb-6 flex-wrap gap-2">
@@ -2149,9 +1183,17 @@
                       <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Тип повторения</label><select value={type} onChange={e => setType(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"><option value="single">Один раз</option><option value="daily">Ежедневно</option><option value="weekly">Еженедельно</option><option value="monthly">Ежемесячно</option></select></div>
                       <div className="flex space-x-4"><div className="flex-1"><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{type === 'single' ? 'Дата' : 'Дата начала'}</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" /></div>{type !== 'single' && (<div className="flex-1"><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Дата окончания (необязательно)</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" /></div>)}</div>
                       {type === 'weekly' && (<div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Дни недели</label><div className="flex justify-between space-x-1">{weekDays.map((day, index) => (<button key={day} onClick={() => handleDayToggle(index)} className={`w-10 h-10 rounded-full text-sm font-semibold transition-colors ${daysOfWeek.includes(index) ? 'bg-cyan-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>{day}</button>))}</div></div>)}
-                      <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Время</label><div className="space-y-2">{times.map((time, index) => (<div key={index} className="flex items-center space-x-2"><input type="time" value={time} onChange={e => handleTimeChange(index, e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" /><button onClick={() => handleRemoveTime(index)} className="p-2 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors"><XMarkIcon className="w-5 h-5" /></button></div>))}<button onClick={handleAddTime} className="mt-2 flex items-center space-x-2 text-sm text-cyan-600 dark:text-cyan-400 font-semibold hover:text-cyan-700 dark:hover:text-cyan-300"><PlusIcon className="w-4 h-4" /><span>Добавить время</span></button></div>
-                      <div className="flex justify-between items-center pt-4"><div>{initialReminder && (<button onClick={handleRemoveReminder} className="px-4 py-2 rounded-md bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:hover:bg-red-900 text-red-700 dark:text-red-300 font-semibold transition-colors text-sm">Удалить напоминание</button>)}</div><div className="flex space-x-2"><button onClick={onClose} className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors">Отмена</button><button onClick={handleSave} className="px-4 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors">Сохранить</button></div></div>
-                  </div>
+                      <div><label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Время</label><div className="space-y-2">{times.map((time, index) => (<div key={index} className="flex items-center space-x-2"><input type="time" value={time} onChange={e => handleTimeChange(index, e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" /><button onClick={() => handleRemoveTime(index)} className="p-2 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors"><XMarkIcon className="w-5 h-5" /></button></div>))}<button onClick={handleAddTime} className="mt-2 flex items-center space-x-2 text-sm text-cyan-600 dark:text-cyan-400 font-semibold hover:text-cyan-700 dark:hover:text-cyan-300"><PlusIcon className="w-4 h-4" /><span>Добавить время</span></button></div></div>
+                      <div className="flex justify-between items-center pt-4">
+                        <div>
+                          {initialReminder && (<button onClick={handleRemoveReminder} className="px-4 py-2 rounded-md bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:hover:bg-red-900 text-red-700 dark:text-red-300 font-semibold transition-colors text-sm">Удалить напоминание</button>)}
+                        </div>
+                        <div className="flex space-x-2">
+                          <button onClick={onClose} className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors">Отмена</button>
+                          <button onClick={handleSave} className="px-4 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors">Сохранить</button>
+                        </div>
+                      </div>
+                    </div>
               </Modal>
           );
       };
@@ -2291,6 +1333,949 @@
               </Modal>
           );
       };
+
+      const App = () => {
+        const [notes, setNotes] = useLocalStorage('notes', []);
+        const [categories, setCategories] = useLocalStorage('categories', []);
+        const [templates, setTemplates] = useLocalStorage('templates', []);
+        const [activeToast, setActiveToast] = useState(null);
+        const [view, setView] = useState('LIST');
+        const [currentNote, setCurrentNote] = useState(null);
+        const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
+        const [newCategoryName, setNewCategoryName] = useState('');
+        const [editingCategoryId, setEditingCategoryId] = useState(null);
+        const [editedCategoryName, setEditedCategoryName] = useState('');
+        const [activeFilter, setActiveFilter] = useState('ALL');
+        const [searchQuery, setSearchQuery] = useState('');
+        const [sortOrder, setSortOrder] = useState('updatedAt_desc');
+        const [noteToTrash, setNoteToTrash] = useState(null);
+        const [noteToDelete, setNoteToDelete] = useState(null);
+        const [isDeleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
+        const [isImportModalOpen, setImportModalOpen] = useState(false);
+        const importFileInputRef = useRef(null);
+        const [dataToImport, setDataToImport] = useState(null);
+        const [isSelectionMode, setSelectionMode] = useState(false);
+        const [selectedNoteIds, setSelectedNoteIds] = useState([]);
+        const [isDeleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false);
+        const [isClearTrashModalOpen, setClearTrashModalOpen] = useState(false);
+        const [pinHash, setPinHash] = useLocalStorage('smart-notepad-pin', null);
+        const [isUnlocked, setIsUnlocked] = useState(!pinHash);
+        const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
+        const [isTemplateModalOpen, setTemplateModalOpen] = useState(false);
+        const osTheme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        const [theme, setTheme] = useLocalStorage('theme', osTheme);
+        
+        useEffect(() => {
+          const root = window.document.documentElement;
+          if (theme === 'dark') {
+            root.classList.add('dark');
+          } else {
+            root.classList.remove('dark');
+          }
+        }, [theme]);
+
+        useEffect(() => {
+          const isMigrated = localStorage.getItem('smart-notepad-reminder-migrated-v2');
+          if (isMigrated) return;
+
+          const notesToMigrate = notes.some(n => n.reminderAt);
+
+          if (notesToMigrate) {
+              const migratedNotes = notes.map(note => {
+                  const oldNote = note;
+                  let newNotePart = {};
+
+                  if (oldNote.reminderAt) {
+                      const reminderDate = new Date(oldNote.reminderAt);
+                      const newReminder = {
+                          type: 'single',
+                          startDate: reminderDate.getTime(),
+                          times: [`${String(reminderDate.getHours()).padStart(2, '0')}:${String(reminderDate.getMinutes()).padStart(2, '0')}`],
+                          nextDueDate: reminderDate.getTime(),
+                          endDate: null,
+                      };
+                      newNotePart.reminder = newReminder;
+                  } else {
+                      newNotePart.reminder = note.reminder || null;
+                  }
+
+                  if (!note.journal) {
+                      newNotePart.journal = [];
+                  }
+                  
+                  const { reminderAt, ...restOfNote } = oldNote;
+
+                  return { ...restOfNote, ...newNotePart };
+              });
+              setNotes(migratedNotes);
+              showToast('Напоминания обновлены до нового формата!', 'info');
+          }
+          localStorage.setItem('smart-notepad-reminder-migrated-v2', 'true');
+        }, []);
+
+        useEffect(() => {
+          if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+          }
+          
+          const intervalId = setInterval(() => {
+              const now = Date.now();
+              let notesChanged = false;
+              const updatedNotes = [...notes];
+
+              updatedNotes.forEach((note, index) => {
+                  if (note.reminder && note.reminder.nextDueDate && note.reminder.nextDueDate <= now) {
+                      if (Notification.permission === 'granted') {
+                          new Notification(`Напоминание: ${note.title}`, {
+                              body: note.content.substring(0, 100) + (note.content.length > 100 ? '...' : ''),
+                          });
+                      }
+                      const newNextDueDate = calculateNextDueDate(note.reminder, now);
+                      updatedNotes[index] = {
+                          ...note,
+                          reminder: {
+                              ...note.reminder,
+                              nextDueDate: newNextDueDate,
+                          },
+                          updatedAt: now,
+                      };
+                      notesChanged = true;
+                  }
+              });
+
+              if (notesChanged) {
+                  setNotes(updatedNotes);
+                  showToast('Сработало напоминание!', 'info');
+              }
+          }, 30000);
+
+          return () => clearInterval(intervalId);
+        }, [notes, setNotes]);
+
+        useEffect(() => {
+          const handleUrlImport = () => {
+              try {
+                  const hash = window.location.hash;
+                  if (hash.startsWith('#/import-note/')) {
+                      const encodedData = hash.substring('#/import-note/'.length);
+                      const decodedJson = atob(decodeURIComponent(encodedData));
+                      const noteData = JSON.parse(decodedJson);
+
+                      if (noteData.title && typeof noteData.content !== 'undefined') {
+                           const now = Date.now();
+                           const newNote = {
+                              id: now.toString(),
+                              title: noteData.title,
+                              content: noteData.content,
+                              color: noteData.color || null,
+                              createdAt: now,
+                              updatedAt: now,
+                              isFavorite: false,
+                              isPinned: false,
+                              categoryId: null,
+                              reminder: null,
+                              journal: [],
+                              deletedAt: null,
+                           };
+                           setNotes(prevNotes => [newNote, ...prevNotes]);
+                           showToast('Заметка успешно импортирована!', 'success');
+                           
+                           window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                      }
+                  }
+              } catch (e) {
+                  console.error("Failed to import note from URL", e);
+                  showToast('Не удалось импортировать заметку по ссылке.', 'error');
+              }
+          };
+          handleUrlImport();
+        }, [setNotes]);
+
+        const showToast = (message, type = 'info') => {
+          setActiveToast({ id: Date.now(), message, type });
+        };
+        
+        const hashPin = async (pin) => {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(pin);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        };
+
+        const handleSaveNote = (noteData) => {
+          const now = Date.now();
+          
+          if (noteData.reminder && Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'denied') {
+                showToast('Уведомления заблокированы. Вы не получите напоминание.', 'error');
+              }
+            });
+          } else if (noteData.reminder && Notification.permission === 'denied') {
+              showToast('Уведомления заблокированы. Включите их в настройках браузера.', 'error');
+          }
+          
+          let processedReminder = noteData.reminder;
+          if (processedReminder) {
+              const nextDueDate = calculateNextDueDate(processedReminder, Date.now());
+              processedReminder = { ...processedReminder, nextDueDate };
+          }
+
+          if (currentNote) {
+            setNotes(notes.map(n => n.id === currentNote.id ? { ...n, ...noteData, reminder: processedReminder, updatedAt: now } : n));
+            showToast('Заметка обновлена', 'success');
+          } else {
+            const newNote = {
+              id: now.toString(),
+              ...noteData,
+              reminder: processedReminder,
+              createdAt: now,
+              updatedAt: now,
+              isPinned: false,
+              deletedAt: null,
+            };
+            setNotes([newNote, ...notes]);
+            showToast('Заметка создана', 'success');
+          }
+          setView('LIST');
+          setCurrentNote(null);
+        };
+        
+        const handleMoveToTrash = (id) => {
+          setNoteToTrash(id);
+        };
+
+        const confirmMoveToTrash = () => {
+          if (!noteToTrash) return;
+          setNotes(notes.map(n => n.id === noteToTrash ? { ...n, deletedAt: Date.now(), isPinned: false } : n));
+          showToast('Заметка перемещена в корзину', 'info');
+          setNoteToTrash(null);
+        };
+        
+        const handleRestoreNote = (id) => {
+          setNotes(notes.map(n => n.id === id ? { ...n, deletedAt: null } : n));
+          showToast('Заметка восстановлена', 'success');
+        };
+        
+        const handleDeletePermanently = (id) => {
+          setNoteToDelete(id);
+        };
+        
+        const confirmDeletePermanently = () => {
+          if (!noteToDelete) return;
+          setNotes(notes.filter(n => n.id !== noteToDelete));
+          showToast('Заметка удалена навсегда', 'error');
+          setNoteToDelete(null);
+        };
+
+        const handleEmptyTrash = () => {
+          setNotes(notes.filter(n => !n.deletedAt));
+          showToast('Корзина очищена', 'error');
+          setClearTrashModalOpen(false);
+        };
+
+        const handleToggleFavorite = (id) => {
+          setNotes(notes.map(n => {
+            if (n.id === id) {
+              const isNowFavorite = !n.isFavorite;
+              return { ...n, isFavorite: isNowFavorite, categoryId: isNowFavorite ? n.categoryId : null };
+            }
+            return n;
+          }));
+        };
+        
+        const handleTogglePin = (id) => {
+          setNotes(notes.map(n => n.id === id ? { ...n, isPinned: !n.isPinned } : n));
+        };
+        
+        const handleToggleChecklistItem = (noteId, itemIndex) => {
+              setNotes(prevNotes => {
+                  const noteToUpdate = prevNotes.find(n => n.id === noteId);
+                  if (!noteToUpdate) return prevNotes;
+
+                  const lines = noteToUpdate.content.split('\n');
+                  let currentChecklistItem = -1;
+                  const newLines = lines.map(line => {
+                      if (line.trim().startsWith('- [ ]') || line.trim().startsWith('- [x]')) {
+                          currentChecklistItem++;
+                          if (currentChecklistItem === itemIndex) {
+                              return line.includes('[ ]') ? line.replace('[ ]', '[x]') : line.replace('[x]', '[ ]');
+                          }
+                      }
+                      return line;
+                  });
+
+                  return prevNotes.map(n => 
+                      n.id === noteId 
+                          ? { ...n, content: newLines.join('\n'), updatedAt: Date.now() } 
+                          : n
+                  );
+              });
+          };
+
+        const handleChangeCategory = (noteId, categoryId) => {
+            setNotes(notes.map(n => n.id === noteId ? { ...n, categoryId: categoryId } : n));
+        };
+
+        const handleCreateCategory = () => {
+          if (newCategoryName.trim() === '') {
+            showToast('Название категории не может быть пустым', 'error');
+            return;
+          }
+          const newCategory = { id: Date.now().toString(), name: newCategoryName.trim() };
+          setCategories([...categories, newCategory]);
+          setNewCategoryName('');
+          showToast('Категория создана', 'success');
+        };
+
+        const handleDeleteCategory = (id) => {
+          setNotes(notes.map(n => n.categoryId === id ? { ...n, categoryId: null } : n));
+          setCategories(categories.filter(c => c.id !== id));
+          showToast('Категория удалена', 'error');
+        };
+
+        const startEditCategory = (category) => {
+          setEditingCategoryId(category.id);
+          setEditedCategoryName(category.name);
+        };
+
+        const cancelEditCategory = () => {
+            setEditingCategoryId(null);
+            setEditedCategoryName('');
+        };
+
+        const handleUpdateCategory = () => {
+            if (!editingCategoryId || editedCategoryName.trim() === '') {
+                showToast('Название категории не может быть пустым', 'error');
+                return;
+            }
+            setCategories(categories.map(c => c.id === editingCategoryId ? { ...c, name: editedCategoryName.trim() } : c));
+            showToast('Категория обновлена', 'success');
+            cancelEditCategory();
+        };
+
+        const handleSaveTemplate = (templateData) => {
+          if (templateData.title.trim() === '') {
+              showToast('Название шаблона не может быть пустым', 'error');
+              return false;
+          }
+          if (templateData.id) {
+              setTemplates(templates.map(t => t.id === templateData.id ? { ...t, title: templateData.title, content: templateData.content } : t));
+              showToast('Шаблон обновлен', 'success');
+          } else {
+              const newTemplate = {
+                  id: Date.now().toString(),
+                  title: templateData.title.trim(),
+                  content: templateData.content
+              };
+              setTemplates([...templates, newTemplate]);
+              showToast('Шаблон создан', 'success');
+          }
+          return true;
+        };
+
+        const handleDeleteTemplate = (id) => {
+            setTemplates(templates.filter(t => t.id !== id));
+            showToast('Шаблон удален', 'error');
+        };
+
+        const openEditor = (note) => {
+          setCurrentNote(note);
+          setView('EDITOR');
+        };
+        
+        const navigateTo = (targetView) => {
+          setView(targetView);
+          setSelectionMode(false);
+          setSelectedNoteIds([]);
+        };
+
+        const handleExportData = () => {
+          try {
+            const data = JSON.stringify({ notes, categories, templates, theme }, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `smart-notepad-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Данные успешно экспортированы!', 'success');
+          } catch (error) {
+            console.error('Export failed:', error);
+            showToast('Ошибка при экспорте данных.', 'error');
+          }
+        };
+
+        const handleImportClick = () => {
+          importFileInputRef.current?.click();
+        };
+
+        const handleImportFileChange = (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const text = e.target?.result;
+              if (typeof text !== 'string') throw new Error('File is not a text file');
+              const parsedData = JSON.parse(text);
+
+              if (Array.isArray(parsedData.notes) && Array.isArray(parsedData.categories)) {
+                const notesWithDefaults = parsedData.notes.map((n) => ({
+                    id: n.id || Date.now().toString(),
+                    title: n.title || '',
+                    content: n.content || '',
+                    createdAt: n.createdAt || Date.now(),
+                    updatedAt: n.updatedAt || Date.now(),
+                    isFavorite: n.isFavorite ?? false,
+                    categoryId: n.categoryId ?? null,
+                    isPinned: n.isPinned ?? false,
+                    color: n.color ?? null,
+                    reminder: n.reminder ?? null,
+                    journal: n.journal ?? [],
+                    deletedAt: n.deletedAt ?? null,
+                }));
+                const templatesWithDefaults = (parsedData.templates || []).map((t) => ({
+                    id: t.id || Date.now().toString(),
+                    title: t.title || 'Без названия',
+                    content: t.content || '',
+                }));
+                
+                const themeFromImport = parsedData.theme === 'light' ? 'light' : 'dark';
+                setDataToImport({ notes: notesWithDefaults, categories: parsedData.categories, templates: templatesWithDefaults, theme: themeFromImport });
+                setImportModalOpen(true);
+              } else {
+                throw new Error('Invalid file structure');
+              }
+            } catch (error) {
+              console.error('Import failed:', error);
+              showToast('Ошибка: Неверный формат файла.', 'error');
+            } finally {
+              if (importFileInputRef.current) {
+                importFileInputRef.current.value = '';
+              }
+            }
+          };
+          reader.readAsText(file);
+        };
+
+        const confirmImportData = () => {
+          if (dataToImport) {
+              setNotes(dataToImport.notes);
+              setCategories(dataToImport.categories);
+              setTemplates(dataToImport.templates);
+              setTheme(dataToImport.theme);
+              showToast('Данные успешно импортированы!', 'success');
+          }
+          setImportModalOpen(false);
+          setDataToImport(null);
+        };
+        
+        const handleToggleSelectionMode = () => {
+          setSelectionMode(prev => !prev);
+          setSelectedNoteIds([]);
+        };
+
+        const handleSelectNote = (id) => {
+          if (!isSelectionMode) return;
+          setSelectedNoteIds(prev =>
+            prev.includes(id)
+              ? prev.filter(noteId => noteId !== id)
+              : [...prev, id]
+          );
+        };
+
+        const confirmDeleteSelected = () => {
+          const count = selectedNoteIds.length;
+          
+          if (view === 'TRASH') {
+              setNotes(notes.filter(n => !selectedNoteIds.includes(n.id)));
+          } else {
+              const now = Date.now();
+              setNotes(notes.map(n => selectedNoteIds.includes(n.id) ? {...n, deletedAt: now, isPinned: false} : n));
+          }
+          
+          let message = '';
+          const lastDigit = count % 10;
+          const lastTwoDigits = count % 100;
+
+          if (lastDigit === 1 && lastTwoDigits !== 11) {
+              message = `${count} заметка ${view === 'TRASH' ? 'удалена' : 'перемещена в корзину'}`;
+          } else if ([2, 3, 4].includes(lastDigit) && ![12, 13, 14].includes(lastTwoDigits)) {
+              message = `${count} заметки ${view === 'TRASH' ? 'удалены' : 'перемещены в корзину'}`;
+          } else {
+              message = `${count} заметок ${view === 'TRASH' ? 'удалено' : 'перемещено в корзину'}`;
+          }
+
+          showToast(message, 'error');
+          setDeleteSelectedModalOpen(false);
+          setSelectionMode(false);
+          setSelectedNoteIds([]);
+        };
+
+        const confirmDeleteAllActive = () => {
+          const now = Date.now();
+          setNotes(notes.map(n => !n.deletedAt ? { ...n, deletedAt: now, isPinned: false } : n));
+          showToast('Все заметки перемещены в корзину', 'info');
+          setDeleteAllModalOpen(false);
+        };
+
+        const activeNotes = useMemo(() => notes.filter(n => !n.deletedAt), [notes]);
+        const trashedNotes = useMemo(() => {
+          const sorted = notes.filter(n => n.deletedAt);
+          sorted.sort((a,b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+          return sorted;
+        }, [notes]);
+
+
+        const filteredNotes = useMemo(() => {
+          const sortNotes = (notesToSort) => {
+            const sorted = [...notesToSort];
+            switch (sortOrder) {
+              case 'updatedAt_desc': sorted.sort((a, b) => b.updatedAt - a.updatedAt); break;
+              case 'updatedAt_asc': sorted.sort((a, b) => a.updatedAt - b.updatedAt); break;
+              case 'createdAt_desc': sorted.sort((a, b) => b.createdAt - a.createdAt); break;
+              case 'createdAt_asc': sorted.sort((a, b) => a.createdAt - b.createdAt); break;
+              case 'title_asc': sorted.sort((a, b) => a.title.localeCompare(b.title)); break;
+              case 'title_desc': sorted.sort((a, b) => b.title.localeCompare(b.title)); break;
+            }
+            return sorted;
+          };
+          
+          let notesToDisplay = activeNotes;
+          if (activeFilter === 'FAVORITES') {
+            notesToDisplay = activeNotes.filter(n => n.isFavorite);
+          }
+
+          if (searchQuery.trim() !== '') {
+              notesToDisplay = notesToDisplay.filter(note => 
+                  note.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                  note.content.toLowerCase().includes(searchQuery.toLowerCase())
+              );
+          }
+          
+          const pinnedNotes = notesToDisplay.filter(n => n.isPinned);
+          const unpinnedNotes = notesToDisplay.filter(n => !n.isPinned);
+
+          return [...sortNotes(pinnedNotes), ...sortNotes(unpinnedNotes)];
+
+        }, [activeNotes, activeFilter, searchQuery, sortOrder]);
+
+        const favoritesByCategory = useMemo(() => {
+          if (activeFilter !== 'FAVORITES') return [];
+          
+          const grouped = [];
+          const uncategorized = [];
+
+          const categoryMap = new Map(categories.map(c => [c.id, c]));
+
+          const notesForGrouping = filteredNotes.filter(n => n.isFavorite);
+
+          for (const note of notesForGrouping) {
+              if (note.categoryId && categoryMap.has(note.categoryId)) {
+                const category = categoryMap.get(note.categoryId);
+                let group = grouped.find(g => g.category?.id === category.id);
+                if (!group) {
+                  group = { category, notes: [] };
+                  grouped.push(group);
+                }
+                group.notes.push(note);
+              } else {
+                uncategorized.push(note);
+              }
+          }
+          
+          grouped.sort((a, b) => a.category.name.localeCompare(b.category.name));
+
+          if (uncategorized.length > 0) {
+            grouped.push({ category: null, notes: uncategorized });
+          }
+
+          return grouped;
+        }, [filteredNotes, categories, activeFilter]);
+
+        if (!isUnlocked) {
+            return <LockScreen pinHash={pinHash} onUnlock={() => setIsUnlocked(true)} hashFn={hashPin} />;
+        }
+
+        return (
+          <div className="min-h-screen bg-white dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-100">
+            <div className="container mx-auto max-w-3xl p-4">
+              {view === 'LIST' && (
+                <ListView
+                  notes={filteredNotes}
+                  categories={categories}
+                  activeFilter={activeFilter}
+                  favoritesByCategory={favoritesByCategory}
+                  setActiveFilter={setActiveFilter}
+                  onEdit={openEditor}
+                  onDelete={handleMoveToTrash}
+                  onToggleFavorite={handleToggleFavorite}
+                  onTogglePin={handleTogglePin}
+                  onChangeCategory={handleChangeCategory}
+                  onOpenCategoryModal={() => setCategoryModalOpen(true)}
+                  onOpenSettingsModal={() => setSettingsModalOpen(true)}
+                  onOpenTemplateModal={() => setTemplateModalOpen(true)}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  sortOrder={sortOrder}
+                  onSortChange={setSortOrder}
+                  onExport={handleExportData}
+                  onImport={handleImportClick}
+                  isSelectionMode={isSelectionMode}
+                  selectedNoteIds={selectedNoteIds}
+                  onToggleSelectionMode={handleToggleSelectionMode}
+                  onSelectNote={handleSelectNote}
+                  onDeleteAll={() => setDeleteAllModalOpen(true)}
+                  onNavigate={navigateTo}
+                  trashedCount={trashedNotes.length}
+                  onToggleChecklistItem={handleToggleChecklistItem}
+                />
+              )}
+              {view === 'TRASH' && (
+                 <TrashView
+                   notes={trashedNotes}
+                   onRestore={handleRestoreNote}
+                   onDelete={handleDeletePermanently}
+                   onEmptyTrash={() => setClearTrashModalOpen(true)}
+                   onNavigate={navigateTo}
+                   isSelectionMode={isSelectionMode}
+                   selectedNoteIds={selectedNoteIds}
+                   onToggleSelectionMode={handleToggleSelectionMode}
+                   onSelectNote={handleSelectNote}
+                   onDeleteSelected={() => setDeleteSelectedModalOpen(true)}
+                 />
+              )}
+              {view === 'EDITOR' && (
+                <NoteEditor
+                  note={currentNote}
+                  categories={categories}
+                  templates={templates}
+                  onSave={handleSaveNote}
+                  onCancel={() => { navigateTo('LIST'); setCurrentNote(null); }}
+                  theme={theme}
+                  showToast={showToast}
+                />
+              )}
+              
+              <input type="file" ref={importFileInputRef} onChange={handleImportFileChange} className="hidden" accept="application/json" />
+
+              <TemplateManagerModal 
+                isOpen={isTemplateModalOpen}
+                onClose={() => setTemplateModalOpen(false)}
+                templates={templates}
+                onSave={handleSaveTemplate}
+                onDelete={handleDeleteTemplate}
+              />
+
+              <Modal title="Управление категориями" isOpen={isCategoryModalOpen} onClose={() => { setCategoryModalOpen(false); cancelEditCategory(); }}>
+                <div className="space-y-4">
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Новая категория..."
+                      className="flex-grow bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
+                    />
+                    <button onClick={handleCreateCategory} className="bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-500 text-white font-bold p-2 rounded-md transition-colors">
+                      <PlusIcon className="w-5 h-5"/>
+                    </button>
+                  </div>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {categories.length > 0 ? categories.map(cat => (
+                      <div key={cat.id} className="flex justify-between items-center bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                         {editingCategoryId === cat.id ? (
+                            <>
+                              <input
+                                type="text"
+                                value={editedCategoryName}
+                                onChange={(e) => setEditedCategoryName(e.target.value)}
+                                className="flex-grow bg-white dark:bg-slate-600 text-slate-900 dark:text-white rounded-md px-2 py-1 mr-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleUpdateCategory()}
+                              />
+                              <div className="flex space-x-1">
+                                <button onClick={handleUpdateCategory} className="text-green-500 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300 p-1">
+                                  <CheckIcon className="w-5 h-5"/>
+                                </button>
+                                <button onClick={cancelEditCategory} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white p-1">
+                                  <XMarkIcon className="w-5 h-5"/>
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <span className="truncate pr-2">{cat.name}</span>
+                              <div className="flex space-x-1 flex-shrink-0">
+                                <button onClick={() => startEditCategory(cat)} className="text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 p-1">
+                                  <PencilIcon className="w-5 h-5"/>
+                                </button>
+                                <button onClick={() => handleDeleteCategory(cat.id)} className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 p-1">
+                                  <TrashIcon className="w-5 h-5"/>
+                                </button>
+                              </div>
+                            </>
+                          )}
+                      </div>
+                    )) : (
+                      <p className="text-slate-500 dark:text-slate-400 text-center">Категорий пока нет.</p>
+                    )}
+                  </div>
+                </div>
+              </Modal>
+              
+               <SettingsModal 
+                  isOpen={isSettingsModalOpen} 
+                  onClose={() => setSettingsModalOpen(false)}
+                  pinHash={pinHash}
+                  setPinHash={setPinHash}
+                  hashFn={hashPin}
+                  showToast={showToast}
+                  theme={theme}
+                  setTheme={setTheme}
+              />
+              
+              <Modal title="Переместить в корзину?" isOpen={noteToTrash !== null} onClose={() => setNoteToTrash(null)}>
+                <div className="text-slate-600 dark:text-slate-300">
+                  <p>Вы уверены, что хотите переместить эту заметку в корзину?</p>
+                  <div className="flex justify-end space-x-4 mt-6">
+                    <button 
+                      onClick={() => setNoteToTrash(null)}
+                      className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={confirmMoveToTrash}
+                      className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
+                    >
+                      Переместить
+                    </button>
+                  </div>
+                </div>
+              </Modal>
+              
+              <Modal title="Удалить навсегда?" isOpen={noteToDelete !== null} onClose={() => setNoteToDelete(null)}>
+                <div className="text-slate-600 dark:text-slate-300">
+                  <p>Заметка будет удалена навсегда. Это действие нельзя отменить.</p>
+                  <div className="flex justify-end space-x-4 mt-6">
+                    <button 
+                      onClick={() => setNoteToDelete(null)}
+                      className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={confirmDeletePermanently}
+                      className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                </div>
+              </Modal>
+              
+               <Modal title="Подтвердите действие" isOpen={isDeleteSelectedModalOpen} onClose={() => setDeleteSelectedModalOpen(false)}>
+                  <div className="text-slate-600 dark:text-slate-300">
+                      <p>Вы уверены, что хотите {view === 'TRASH' ? 'навсегда удалить' : 'переместить в корзину'} {selectedNoteIds.length} {(() => {
+                          const count = selectedNoteIds.length;
+                          const lastDigit = count % 10;
+                          const lastTwoDigits = count % 100;
+                          if (lastDigit === 1 && lastTwoDigits !== 11) return 'заметку';
+                          if ([2, 3, 4].includes(lastDigit) && ![12, 13, 14].includes(lastTwoDigits)) return 'заметки';
+                          return 'заметок';
+                      })()}?</p>
+                      {view === 'TRASH' && <p className="text-sm text-yellow-500 dark:text-yellow-400 mt-2">Это действие необратимо.</p>}
+                      <div className="flex justify-end space-x-4 mt-6">
+                      <button 
+                          onClick={() => setDeleteSelectedModalOpen(false)}
+                          className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
+                      >
+                          Отмена
+                      </button>
+                      <button
+                          onClick={confirmDeleteSelected}
+                          className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
+                      >
+                          {view === 'TRASH' ? 'Удалить' : 'Переместить'}
+                      </button>
+                      </div>
+                  </div>
+              </Modal>
+
+              <Modal title="Переместить все в корзину?" isOpen={isDeleteAllModalOpen} onClose={() => setDeleteAllModalOpen(false)}>
+                  <div className="text-slate-600 dark:text-slate-300">
+                      <p className="mb-2">Вы уверены, что хотите переместить <strong className="text-red-500 dark:text-red-400">все активные</strong> заметки в корзину?</p>
+                      <div className="flex justify-end space-x-4 mt-6">
+                      <button 
+                          onClick={() => setDeleteAllModalOpen(false)}
+                          className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
+                      >
+                          Отмена
+                      </button>
+                      <button
+                          onClick={confirmDeleteAllActive}
+                          className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
+                      >
+                          Переместить все
+                      </button>
+                      </div>
+                  </div>
+              </Modal>
+              
+              <Modal title="Очистить корзину?" isOpen={isClearTrashModalOpen} onClose={() => setClearTrashModalOpen(false)}>
+                  <div className="text-slate-600 dark:text-slate-300">
+                      <p className="mb-2">Вы уверены, что хотите <strong className="text-red-500 dark:text-red-400">навсегда удалить все</strong> заметки из корзины?</p>
+                      <p className="text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-100/50 dark:bg-yellow-900/50 p-3 rounded-md">Это действие необратимо. Все данные из корзины будут потеряны.</p>
+                      <div className="flex justify-end space-x-4 mt-6">
+                      <button 
+                          onClick={() => setClearTrashModalOpen(false)}
+                          className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
+                      >
+                          Отмена
+                      </button>
+                      <button
+                          onClick={handleEmptyTrash}
+                          className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
+                      >
+                          Очистить корзину
+                      </button>
+                      </div>
+                  </div>
+              </Modal>
+
+               <Modal title="Импорт данных" isOpen={isImportModalOpen} onClose={() => setImportModalOpen(false)}>
+                  <div className="text-slate-600 dark:text-slate-300">
+                      <p className="mb-2">Вы уверены, что хотите импортировать данные?</p>
+                      <p className="text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-100/50 dark:bg-yellow-900/50 p-3 rounded-md">Внимание: Текущие заметки и категории будут полностью заменены данными из файла.</p>
+                      <div className="flex justify-end space-x-4 mt-6">
+                      <button 
+                          onClick={() => { setImportModalOpen(false); setDataToImport(null); }}
+                          className="px-4 py-2 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors"
+                      >
+                          Отмена
+                      </button>
+                      <button
+                          onClick={confirmImportData}
+                          className="px-4 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors"
+                      >
+                          Импортировать
+                      </button>
+                      </div>
+                  </div>
+              </Modal>
+
+              <Toast toast={activeToast} onDismiss={() => setActiveToast(null)} />
+              
+              {view === 'LIST' && !isSelectionMode && (
+                 <button onClick={() => openEditor(null)} className="fixed bottom-6 right-6 bg-cyan-500 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-500 text-white rounded-full p-4 shadow-lg transform transition-transform hover:scale-110" aria-label="Создать заметку">
+                   <PlusIcon className="w-8 h-8"/>
+                 </button>
+              )}
+
+              {isSelectionMode && (
+                  <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-t border-slate-200 dark:border-slate-700 shadow-lg z-20 animate-fade-in-up">
+                      <div className="container mx-auto max-w-3xl p-4 flex justify-between items-center">
+                          <button onClick={handleToggleSelectionMode} className="flex items-center space-x-2 px-4 py-2 rounded-md bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 text-slate-800 dark:text-white font-semibold transition-colors">
+                              <XMarkIcon className="w-5 h-5"/>
+                              <span>Отмена</span>
+                          </button>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedNoteIds.length} выбрано</span>
+                          <button 
+                              onClick={() => setDeleteSelectedModalOpen(true)} 
+                              disabled={selectedNoteIds.length === 0} 
+                              className="flex items-center space-x-2 px-4 py-2 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors disabled:bg-red-400 dark:disabled:bg-red-800 disabled:cursor-not-allowed"
+                          >
+                              <TrashIcon className="w-5 h-5"/>
+                              <span>{view === 'TRASH' ? 'Удалить' : 'В корзину'}</span>
+                          </button>
+                      </div>
+                  </div>
+              )}
+            </div>
+          </div>
+        );
+      };
+      
+      const calculateNextDueDate = (reminder, lastCheckTime) => {
+          if (!reminder) return null;
+
+          const sortedTimes = reminder.times
+              .map(t => {
+                  const [h, m] = t.split(':').map(Number);
+                  return { h, m };
+              })
+              .sort((a, b) => a.h * 60 + a.m - (b.h * 60 + b.m));
+
+          let searchDate = new Date(lastCheckTime);
+          searchDate.setHours(0, 0, 0, 0);
+          
+          const startDate = new Date(reminder.startDate);
+          startDate.setHours(0,0,0,0);
+
+          for (let i = 0; i < 730; i++) { 
+              if (searchDate.getTime() >= startDate.getTime()) {
+                   let isValidDay = false;
+                   switch (reminder.type) {
+                      case 'daily':
+                          isValidDay = true;
+                          break;
+                      case 'weekly':
+                          isValidDay = reminder.daysOfWeek?.includes(searchDate.getDay()) ?? false;
+                          break;
+                      case 'monthly':
+                          isValidDay = searchDate.getDate() === new Date(reminder.startDate).getDate();
+                          break;
+                      case 'single':
+                          isValidDay = searchDate.getTime() === startDate.getTime();
+                          break;
+                   }
+
+                   if (isValidDay) {
+                      for (const time of sortedTimes) {
+                          let dueDate = new Date(searchDate);
+                          dueDate.setHours(time.h, time.m, 0, 0);
+
+                          if (dueDate.getTime() > lastCheckTime) {
+                              if (reminder.endDate && dueDate.getTime() > new Date(reminder.endDate).getTime()) {
+                                  return null; 
+                              }
+                              return dueDate.getTime();
+                          }
+                      }
+                   }
+              }
+             
+              searchDate.setDate(searchDate.getDate() + 1);
+          }
+
+          return null;
+      };
+
+      const parseMarkdownWithChecklists = (markdown, noteId) => {
+          const rawHtml = window.marked.parse(markdown, { gfm: true });
+          let checklistItemIndex = -1;
+          const processedHtml = rawHtml.replace(/<li class="task-list-item">/g, (match) => {
+              checklistItemIndex++;
+              return `<li class="task-list-item" data-note-id="${noteId}" data-item-index="${checklistItemIndex}">`;
+          }).replace(/<input type="checkbox" disabled="">/g, (match) => {
+              return match.replace(' disabled=""', '');
+          }).replace(/<li class="task-list-item" data-note-id="(.+?)" data-item-index="(.+?)"><input type="checkbox" checked="">/g, (match) => {
+              return match.replace('<li class="task-list-item"', '<li class="task-list-item done"');
+          });
+          const sanitizedHtml = window.DOMPurify.sanitize(processedHtml, {
+              ADD_ATTR: ['data-note-id', 'data-item-index'],
+          });
+          return { __html: sanitizedHtml };
+      };
+
 
       // --- End of Bundled Code ---
 
