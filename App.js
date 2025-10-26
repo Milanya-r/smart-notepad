@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Note, Category, ToastMessage, Template, Reminder, JournalEntry } from './types.js';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
@@ -5,22 +6,6 @@ import { PlusIcon, FolderPlusIcon, StarIcon, PencilIcon, TrashIcon, ArrowLeftIco
 import Modal from './components/Modal.js';
 import Toast from './components/Toast.js';
 import EditorToolbar, { FormatType } from './components/EditorToolbar.js';
-
-// Make TS aware of the global libraries from the CDN
-declare global {
-    interface Window {
-        marked: {
-            parse: (markdown: string, options?: object) => string;
-        };
-        DOMPurify: {
-            sanitize: (html: string, options?: object) => string;
-        };
-        jspdf: {
-            jsPDF: any; 
-        };
-        html2canvas: (element: HTMLElement, options?: any) => Promise<HTMLCanvasElement>;
-    }
-}
 
 type View = 'LIST' | 'EDITOR' | 'TRASH';
 type Filter = 'ALL' | 'FAVORITES';
