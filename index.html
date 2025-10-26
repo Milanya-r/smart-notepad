@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Умный Блокнот</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+      // Prevents Flash of Incorrect Theme (FOIT)
+      (function() {
+        try {
+          var theme = localStorage.getItem('theme');
+          if (theme) {
+            if (JSON.parse(theme) === 'dark') {
+              document.documentElement.classList.add('dark');
+            }
+          } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <style>
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      /* Light theme markdown */
+      .markdown-content h1, .markdown-content h2, .markdown-content h3 { color: #1e293b; font-weight: 600; margin-bottom: 0.5em; margin-top: 1em; }
+      .markdown-content h1 { font-size: 1.5em; }
+      .markdown-content h2 { font-size: 1.25em; }
+      .markdown-content h3 { font-size: 1.1em; }
+      .markdown-content p { margin-bottom: 0.75em; }
+      .markdown-content ul, .markdown-content ol { margin-left: 1.5em; margin-bottom: 1em; }
+      .markdown-content ul { list-style-type: disc; }
+      .markdown-content ol { list-style-type: decimal; }
+      .markdown-content li { margin-bottom: 0.25em; }
+      .markdown-content a { color: #0891b2; text-decoration: underline; }
+      .markdown-content blockquote { border-left: 4px solid #cbd5e1; padding-left: 1em; margin-left: 0; font-style: italic; color: #475569; }
+      .markdown-content code { background-color: #f1f5f9; padding: 0.2em 0.4em; border-radius: 4px; font-family: monospace; }
+      .markdown-content pre { background-color: #f1f5f9; padding: 1em; border-radius: 6px; overflow-x: auto; }
+      .markdown-content pre code { padding: 0; background-color: transparent; }
+      .markdown-content li.task-list-item { list-style-type: none !important; margin-left: -1.5em; }
+      .markdown-content li.task-list-item { display: flex; align-items: center; }
+      .markdown-content li.task-list-item input[type="checkbox"] { margin-right: 0.75em; appearance: none; width: 1.15em; height: 1.15em; border: 2px solid #94a3b8; border-radius: 4px; cursor: pointer; position: relative; top: -1px; flex-shrink: 0; }
+      .markdown-content li.task-list-item input[type="checkbox"]:checked { background-color: #0891b2; border-color: #0891b2; }
+      .markdown-content li.task-list-item input[type="checkbox"]:checked::before { content: '✔'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8em; color: #ffffff; }
+      .markdown-content li.task-list-item.done { color: #64748b; text-decoration: line-through; }
+      
+      /* Dark theme markdown */
+      .dark .markdown-content h1, .dark .markdown-content h2, .dark .markdown-content h3 { color: #e2e8f0; }
+      .dark .markdown-content a { color: #22d3ee; }
+      .dark .markdown-content blockquote { border-left-color: #475569; color: #94a3b8; }
+      .dark .markdown-content code { background-color: #1e293b; }
+      .dark .markdown-content pre { background-color: #1e293b; }
+      .dark .markdown-content li.task-list-item input[type="checkbox"] { border-color: #475569; }
+      .dark .markdown-content li.task-list-item input[type="checkbox"]:checked { background-color: #22d3ee; border-color: #22d3ee; }
+      .dark .markdown-content li.task-list-item input[type="checkbox"]:checked::before { color: #0f172a; }
+      .dark .markdown-content li.task-list-item.done { color: #64748b; }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

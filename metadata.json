@@ -1,0 +1,5 @@
+{
+  "name": "Умный Блокнот",
+  "description": "A client-side notepad application that allows users to create, edit, and organize notes. Features include favorites and custom categories, with all data stored locally in the browser.",
+  "requestFramePermissions": []
+}
