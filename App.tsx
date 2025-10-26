@@ -1,11 +1,3 @@
-
-
-
-
-
-
-
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Note, Category, ToastMessage, Template, Reminder, JournalEntry } from './types.ts';
 import { useLocalStorage } from './hooks/useLocalStorage.ts';
@@ -1398,6 +1390,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, categories, onEdit, onDelete,
 
         // If a checkbox was clicked, handle the toggle and stop further actions.
         if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
+            e.preventDefault(); // Take control of the click to prevent race conditions
             const taskListItem = target.closest('li.task-list-item');
             if (taskListItem) {
                 const itemIndexStr = taskListItem.getAttribute('data-item-index');
@@ -1405,9 +1398,8 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, categories, onEdit, onDelete,
                     const itemIndex = parseInt(itemIndexStr, 10);
                     onToggleChecklistItem(note.id, itemIndex);
                 }
-                // Stop the click from propagating to the card's main click handler.
-                return; 
             }
+            return;
         }
         
         // Ignore clicks on other interactive elements to prevent opening the editor.
