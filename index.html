@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Умный Блокнот</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0891b2">
     <!-- Version 1.0 - All-in-one build -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -1842,7 +1844,7 @@
               case 'createdAt_desc': sorted.sort((a, b) => b.createdAt - a.createdAt); break;
               case 'createdAt_asc': sorted.sort((a, b) => a.createdAt - b.createdAt); break;
               case 'title_asc': sorted.sort((a, b) => a.title.localeCompare(b.title)); break;
-              case 'title_desc': sorted.sort((a, b) => b.title.localeCompare(b.title)); break;
+              case 'title_desc': sorted.sort((a, b) => b.title.localeCompare(a.title)); break;
             }
             return sorted;
           };
@@ -2290,6 +2292,19 @@
           <App />
         </React.StrictMode>
       );
+      
+      // Register Service Worker for PWA
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('service-worker.js')
+            .then(registration => {
+              console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            })
+            .catch(err => {
+              console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+      }
     </script>
   </body>
 </html>
