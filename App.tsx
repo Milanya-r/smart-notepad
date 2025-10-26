@@ -4,6 +4,8 @@
 
 
 
+
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Note, Category, ToastMessage, Template, Reminder, JournalEntry } from './types.ts';
 import { useLocalStorage } from './hooks/useLocalStorage.ts';
@@ -1394,28 +1396,26 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, categories, onEdit, onDelete,
     const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
         const target = e.target as HTMLElement;
 
-        // Handle checklist item toggles
+        // If a checkbox was clicked, handle the toggle and stop further actions.
         if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
             const taskListItem = target.closest('li.task-list-item');
             if (taskListItem) {
-                // Prevent the checkbox's default state change, React will handle it
-                e.preventDefault();
                 const itemIndexStr = taskListItem.getAttribute('data-item-index');
                 if (itemIndexStr !== null) {
                     const itemIndex = parseInt(itemIndexStr, 10);
                     onToggleChecklistItem(note.id, itemIndex);
                 }
-                // Stop further event processing
-                return;
+                // Stop the click from propagating to the card's main click handler.
+                return; 
             }
         }
         
-        // Ignore clicks on other interactive elements like buttons or the category dropdown
+        // Ignore clicks on other interactive elements to prevent opening the editor.
         if (target.closest('button') || target.closest('select')) {
             return;
         }
 
-        // If not a specific interactive element, proceed with the default card action
+        // If not an interactive element, proceed with the default card action.
         if (isSelectionMode) {
             onSelect(note.id);
         } else {
