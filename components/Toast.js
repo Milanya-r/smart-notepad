@@ -1,10 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { ToastMessage } from '../types.js';
-
-interface ToastProps {
-  toast: ToastMessage | null;
-  onDismiss: () => void;
-}
 
 const toastStyles = {
   success: 'bg-green-500',
@@ -12,7 +6,7 @@ const toastStyles = {
   info: 'bg-blue-500',
 };
 
-const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
+const Toast = ({ toast, onDismiss }) => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
-export function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-  const [storedValue, setStoredValue] = useState<T>(() => {
+export function useLocalStorage(key, initialValue) {
+  const [storedValue, setStoredValue] = useState(() => {
     try {
       if (typeof window === 'undefined') {
         return initialValue;
@@ -29,7 +29,7 @@ export function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dis
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    const handleStorageChange = (e: StorageEvent) => {
+    const handleStorageChange = (e) => {
       if (e.key === key) {
         try {
           if (e.newValue === null) {

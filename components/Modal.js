@@ -1,14 +1,7 @@
-import React, { ReactNode } from 'react';
+import React from 'react';
 import { XMarkIcon } from './icons.js';
 
-interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  children: ReactNode;
-}
-
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) {
     return null;
   }

@@ -1,18 +1,13 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Note, Category, ToastMessage, Template, Reminder, JournalEntry } from './types.js';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { PlusIcon, FolderPlusIcon, StarIcon, PencilIcon, TrashIcon, ArrowLeftIcon, CheckIcon, XMarkIcon, SearchIcon, BellIcon, EyeIcon, EyeSlashIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ChevronUpDownIcon, ClipboardDocumentCheckIcon, ArchiveBoxXMarkIcon, CheckCircleIcon, PinIcon, PaintBrushIcon, ArrowUturnLeftIcon, Cog6ToothIcon, LockClosedIcon, EllipsisVerticalIcon, SunIcon, MoonIcon, DocumentDuplicateIcon, BoldIcon, ItalicIcon, HeadingIcon, LinkIcon, CodeBracketIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon, ShareIcon, ClockIcon, CalendarDaysIcon, ArrowPathIcon } from './components/icons.js';
 import Modal from './components/Modal.js';
 import Toast from './components/Toast.js';
-import EditorToolbar, { FormatType } from './components/EditorToolbar.js';
+import EditorToolbar from './components/EditorToolbar.js';
 
-type View = 'LIST' | 'EDITOR' | 'TRASH';
-type Filter = 'ALL' | 'FAVORITES';
-type SortOrder = 'updatedAt_desc' | 'updatedAt_asc' | 'createdAt_desc' | 'createdAt_asc' | 'title_asc' | 'title_desc';
-type Theme = 'light' | 'dark';
 
-const calculateNextDueDate = (reminder: Reminder, lastCheckTime: number): number | null => {
+const calculateNextDueDate = (reminder, lastCheckTime) => {
     if (!reminder) return null;
 
     const sortedTimes = reminder.times
@@ -68,7 +63,7 @@ const calculateNextDueDate = (reminder: Reminder, lastCheckTime: number): number
     return null; // No upcoming date found within the search limit
 };
 
-const parseMarkdownWithChecklists = (markdown: string, noteId: string): { __html: string } => {
+const parseMarkdownWithChecklists = (markdown, noteId) => {
     // Enable GFM task lists
     const rawHtml = window.marked.parse(markdown, { gfm: true });
 
@@ -94,42 +89,42 @@ const parseMarkdownWithChecklists = (markdown: string, noteId: string): { __html
 };
 
 
-const App: React.FC = () => {
-  const [notes, setNotes] = useLocalStorage<Note[]>('notes', []);
-  const [categories, setCategories] = useLocalStorage<Category[]>('categories', []);
-  const [templates, setTemplates] = useLocalStorage<Template[]>('templates', []);
-  const [activeToast, setActiveToast] = useState<ToastMessage | null>(null);
+const App = () => {
+  const [notes, setNotes] = useLocalStorage('notes', []);
+  const [categories, setCategories] = useLocalStorage('categories', []);
+  const [templates, setTemplates] = useLocalStorage('templates', []);
+  const [activeToast, setActiveToast] = useState(null);
 
-  const [view, setView] = useState<View>('LIST');
-  const [currentNote, setCurrentNote] = useState<Note | null>(null);
+  const [view, setView] = useState('LIST');
+  const [currentNote, setCurrentNote] = useState(null);
   
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [editedCategoryName, setEditedCategoryName] = useState('');
 
-  const [activeFilter, setActiveFilter] = useState<Filter>('ALL');
+  const [activeFilter, setActiveFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('updatedAt_desc');
+  const [sortOrder, setSortOrder] = useState('updatedAt_desc');
   
-  const [noteToTrash, setNoteToTrash] = useState<string | null>(null);
-  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [noteToTrash, setNoteToTrash] = useState(null);
+  const [noteToDelete, setNoteToDelete] = useState(null);
   const [isDeleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
   const [isImportModalOpen, setImportModalOpen] = useState(false);
-  const importFileInputRef = useRef<HTMLInputElement>(null);
-  const [dataToImport, setDataToImport] = useState<{notes: Note[], categories: Category[], templates: Template[], theme: Theme} | null>(null);
+  const importFileInputRef = useRef(null);
+  const [dataToImport, setDataToImport] = useState(null);
 
   // Selection and mass delete state
   const [isSelectionMode, setSelectionMode] = useState(false);
-  const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
+  const [selectedNoteIds, setSelectedNoteIds] = useState([]);
   const [isDeleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false);
 
   // Trash actions state
   const [isClearTrashModalOpen, setClearTrashModalOpen] = useState(false);
   
   // PIN lock state
-  const [pinHash, setPinHash] = useLocalStorage<string | null>('smart-notepad-pin', null);
-  const [isUnlocked, setIsUnlocked] = useState<boolean>(!pinHash);
+  const [pinHash, setPinHash] = useLocalStorage('smart-notepad-pin', null);
+  const [isUnlocked, setIsUnlocked] = useState(!pinHash);
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
 
   // Template state
@@ -138,7 +133,7 @@ const App: React.FC = () => {
 
   // Theme state
   const osTheme = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  const [theme, setTheme] = useLocalStorage<Theme>('theme', osTheme);
+  const [theme, setTheme] = useLocalStorage('theme', osTheme);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -154,16 +149,16 @@ const App: React.FC = () => {
     const isMigrated = localStorage.getItem('smart-notepad-reminder-migrated-v2');
     if (isMigrated) return;
 
-    const notesToMigrate = notes.some(n => (n as any).reminderAt);
+    const notesToMigrate = notes.some(n => n.reminderAt);
 
     if (notesToMigrate) {
         const migratedNotes = notes.map(note => {
-            const oldNote = note as any;
-            let newNotePart: Partial<Note> = {};
+            const oldNote = note;
+            let newNotePart = {};
 
             if (oldNote.reminderAt) {
                 const reminderDate = new Date(oldNote.reminderAt);
-                const newReminder: Reminder = {
+                const newReminder = {
                     type: 'single',
                     startDate: reminderDate.getTime(),
                     times: [`${String(reminderDate.getHours()).padStart(2, '0')}:${String(reminderDate.getMinutes()).padStart(2, '0')}`],
@@ -183,7 +178,7 @@ const App: React.FC = () => {
 
             return { ...restOfNote, ...newNotePart };
         });
-        setNotes(migratedNotes as Note[]);
+        setNotes(migratedNotes);
         showToast('Напоминания обновлены до нового формата!', 'info');
     }
     localStorage.setItem('smart-notepad-reminder-migrated-v2', 'true');
@@ -247,7 +242,7 @@ const App: React.FC = () => {
 
                 if (noteData.title && typeof noteData.content !== 'undefined') {
                      const now = Date.now();
-                     const newNote: Note = {
+                     const newNote = {
                         id: now.toString(),
                         title: noteData.title,
                         content: noteData.content,
@@ -277,11 +272,11 @@ const App: React.FC = () => {
   }, [setNotes]);
 
 
-  const showToast = (message: string, type: ToastMessage['type'] = 'info') => {
+  const showToast = (message, type = 'info') => {
     setActiveToast({ id: Date.now(), message, type });
   };
   
-  const hashPin = async (pin: string): Promise<string> => {
+  const hashPin = async (pin) => {
       const encoder = new TextEncoder();
       const data = encoder.encode(pin);
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -289,7 +284,7 @@ const App: React.FC = () => {
       return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   };
 
-  const handleSaveNote = (noteData: { title: string; content: string; isFavorite: boolean; categoryId: string | null; reminder: Reminder | null; journal: JournalEntry[]; color: string | null; }) => {
+  const handleSaveNote = (noteData) => {
     const now = Date.now();
     
     if (noteData.reminder && Notification.permission === 'default') {
@@ -314,7 +309,7 @@ const App: React.FC = () => {
       setNotes(notes.map(n => n.id === currentNote.id ? { ...n, ...noteData, reminder: processedReminder, updatedAt: now } : n));
       showToast('Заметка обновлена', 'success');
     } else {
-      const newNote: Note = {
+      const newNote = {
         id: now.toString(),
         ...noteData,
         reminder: processedReminder,
@@ -330,7 +325,7 @@ const App: React.FC = () => {
     setCurrentNote(null);
   };
   
-  const handleMoveToTrash = (id: string) => {
+  const handleMoveToTrash = (id) => {
     setNoteToTrash(id);
   };
 
@@ -341,12 +336,12 @@ const App: React.FC = () => {
     setNoteToTrash(null);
   };
   
-  const handleRestoreNote = (id: string) => {
+  const handleRestoreNote = (id) => {
     setNotes(notes.map(n => n.id === id ? { ...n, deletedAt: null } : n));
     showToast('Заметка восстановлена', 'success');
   };
   
-  const handleDeletePermanently = (id: string) => {
+  const handleDeletePermanently = (id) => {
     setNoteToDelete(id);
   };
   
@@ -363,7 +358,7 @@ const App: React.FC = () => {
     setClearTrashModalOpen(false);
   };
 
-  const handleToggleFavorite = (id: string) => {
+  const handleToggleFavorite = (id) => {
     setNotes(notes.map(n => {
       if (n.id === id) {
         const isNowFavorite = !n.isFavorite;
@@ -373,11 +368,11 @@ const App: React.FC = () => {
     }));
   };
   
-  const handleTogglePin = (id: string) => {
+  const handleTogglePin = (id) => {
     setNotes(notes.map(n => n.id === id ? { ...n, isPinned: !n.isPinned } : n));
   };
   
-  const handleToggleChecklistItem = (noteId: string, itemIndex: number) => {
+  const handleToggleChecklistItem = (noteId, itemIndex) => {
         setNotes(prevNotes => {
             const noteToUpdate = prevNotes.find(n => n.id === noteId);
             if (!noteToUpdate) return prevNotes;
@@ -402,7 +397,7 @@ const App: React.FC = () => {
         });
     };
 
-  const handleChangeCategory = (noteId: string, categoryId: string | null) => {
+  const handleChangeCategory = (noteId, categoryId) => {
       setNotes(notes.map(n => n.id === noteId ? { ...n, categoryId: categoryId } : n));
   };
 
@@ -411,19 +406,19 @@ const App: React.FC = () => {
       showToast('Название категории не может быть пустым', 'error');
       return;
     }
-    const newCategory: Category = { id: Date.now().toString(), name: newCategoryName.trim() };
+    const newCategory = { id: Date.now().toString(), name: newCategoryName.trim() };
     setCategories([...categories, newCategory]);
     setNewCategoryName('');
     showToast('Категория создана', 'success');
   };
 
-  const handleDeleteCategory = (id: string) => {
+  const handleDeleteCategory = (id) => {
     setNotes(notes.map(n => n.categoryId === id ? { ...n, categoryId: null } : n));
     setCategories(categories.filter(c => c.id !== id));
     showToast('Категория удалена', 'error');
   };
 
-  const startEditCategory = (category: Category) => {
+  const startEditCategory = (category) => {
     setEditingCategoryId(category.id);
     setEditedCategoryName(category.name);
   };
@@ -444,7 +439,7 @@ const App: React.FC = () => {
   };
 
   // Template CRUD
-  const handleSaveTemplate = (templateData: {id?: string, title: string, content: string}) => {
+  const handleSaveTemplate = (templateData) => {
     if (templateData.title.trim() === '') {
         showToast('Название шаблона не может быть пустым', 'error');
         return false;
@@ -453,7 +448,7 @@ const App: React.FC = () => {
         setTemplates(templates.map(t => t.id === templateData.id ? { ...t, title: templateData.title, content: templateData.content } : t));
         showToast('Шаблон обновлен', 'success');
     } else { // Create
-        const newTemplate: Template = {
+        const newTemplate = {
             id: Date.now().toString(),
             title: templateData.title.trim(),
             content: templateData.content
@@ -464,18 +459,18 @@ const App: React.FC = () => {
     return true;
   };
 
-  const handleDeleteTemplate = (id: string) => {
+  const handleDeleteTemplate = (id) => {
       setTemplates(templates.filter(t => t.id !== id));
       showToast('Шаблон удален', 'error');
   };
 
 
-  const openEditor = (note: Note | null) => {
+  const openEditor = (note) => {
     setCurrentNote(note);
     setView('EDITOR');
   };
   
-  const navigateTo = (targetView: View) => {
+  const navigateTo = (targetView) => {
     setView(targetView);
     setSelectionMode(false);
     setSelectedNoteIds([]);
@@ -504,7 +499,7 @@ const App: React.FC = () => {
     importFileInputRef.current?.click();
   };
 
-  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFileChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -517,7 +512,7 @@ const App: React.FC = () => {
 
         if (Array.isArray(parsedData.notes) && Array.isArray(parsedData.categories)) {
           // Add missing fields to imported notes for backward compatibility
-          const notesWithDefaults = parsedData.notes.map((n: Partial<Note> & {reminderAt?: number}) => ({
+          const notesWithDefaults = parsedData.notes.map((n) => ({
               id: n.id || Date.now().toString(),
               title: n.title || '',
               content: n.content || '',
@@ -531,7 +526,7 @@ const App: React.FC = () => {
               journal: n.journal ?? [],
               deletedAt: n.deletedAt ?? null,
           }));
-          const templatesWithDefaults = (parsedData.templates || []).map((t: Partial<Template>) => ({
+          const templatesWithDefaults = (parsedData.templates || []).map((t) => ({
               id: t.id || Date.now().toString(),
               title: t.title || 'Без названия',
               content: t.content || '',
@@ -573,7 +568,7 @@ const App: React.FC = () => {
     setSelectedNoteIds([]);
   };
 
-  const handleSelectNote = (id: string) => {
+  const handleSelectNote = (id) => {
     if (!isSelectionMode) return;
     setSelectedNoteIds(prev =>
       prev.includes(id)
@@ -627,7 +622,7 @@ const App: React.FC = () => {
 
 
   const filteredNotes = useMemo(() => {
-    const sortNotes = (notesToSort: Note[]) => {
+    const sortNotes = (notesToSort) => {
       const sorted = [...notesToSort];
       switch (sortOrder) {
         case 'updatedAt_desc': sorted.sort((a, b) => b.updatedAt - a.updatedAt); break;
@@ -662,8 +657,8 @@ const App: React.FC = () => {
   const favoritesByCategory = useMemo(() => {
     if (activeFilter !== 'FAVORITES') return [];
     
-    const grouped: { category: Category | null; notes: Note[] }[] = [];
-    const uncategorized: Note[] = [];
+    const grouped = [];
+    const uncategorized = [];
 
     const categoryMap = new Map(categories.map(c => [c.id, c]));
 
@@ -671,7 +666,7 @@ const App: React.FC = () => {
 
     for (const note of notesForGrouping) {
         if (note.categoryId && categoryMap.has(note.categoryId)) {
-          const category = categoryMap.get(note.categoryId)!;
+          const category = categoryMap.get(note.categoryId);
           let group = grouped.find(g => g.category?.id === category.id);
           if (!group) {
             group = { category, notes: [] };
@@ -683,7 +678,7 @@ const App: React.FC = () => {
         }
     }
     
-    grouped.sort((a, b) => a.category!.name.localeCompare(b.category!.name));
+    grouped.sort((a, b) => a.category.name.localeCompare(b.category.name));
 
     if (uncategorized.length > 0) {
       grouped.push({ category: null, notes: uncategorized });
@@ -693,7 +688,7 @@ const App: React.FC = () => {
   }, [filteredNotes, categories, activeFilter]);
 
   if (!isUnlocked) {
-      return <LockScreen pinHash={pinHash!} onUnlock={() => setIsUnlocked(true)} hashFn={hashPin} />;
+      return <LockScreen pinHash={pinHash} onUnlock={() => setIsUnlocked(true)} hashFn={hashPin} />;
   }
 
   return (
@@ -998,50 +993,14 @@ const App: React.FC = () => {
   );
 };
 
-interface ListViewProps {
-    notes: Note[];
-    categories: Category[];
-    activeFilter: Filter;
-    favoritesByCategory: { category: Category | null; notes: Note[] }[];
-    setActiveFilter: (filter: Filter) => void;
-    onEdit: (note: Note) => void;
-    onDelete: (id: string) => void;
-    onToggleFavorite: (id: string) => void;
-    onTogglePin: (id: string) => void;
-    onChangeCategory: (noteId: string, categoryId: string | null) => void;
-    onOpenCategoryModal: () => void;
-    onOpenSettingsModal: () => void;
-    onOpenTemplateModal: () => void;
-    searchQuery: string;
-    onSearchChange: (query: string) => void;
-    sortOrder: SortOrder;
-    onSortChange: (order: SortOrder) => void;
-    onExport: () => void;
-    onImport: () => void;
-    isSelectionMode: boolean;
-    selectedNoteIds: string[];
-    onToggleSelectionMode: () => void;
-    onSelectNote: (id: string) => void;
-    onDeleteAll: () => void;
-    onNavigate: (view: View) => void;
-    trashedCount: number;
-    onToggleChecklistItem: (noteId: string, itemIndex: number) => void;
-}
-
-const ActionsDropdown: React.FC<{
-    onOpenCategoryModal: () => void;
-    onOpenTemplateModal: () => void;
-    onImport: () => void;
-    onExport: () => void;
-    onDeleteAll: () => void;
-}> = ({ onOpenCategoryModal, onOpenTemplateModal, onImport, onExport, onDeleteAll }) => {
+const ActionsDropdown = ({ onOpenCategoryModal, onOpenTemplateModal, onImport, onExport, onDeleteAll }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-    const buttonRef = useRef<HTMLButtonElement>(null);
+    const dropdownRef = useRef(null);
+    const buttonRef = useRef(null);
 
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setIsOpen(false);
             }
         };
@@ -1051,7 +1010,7 @@ const ActionsDropdown: React.FC<{
         };
     }, [dropdownRef]);
 
-    const handleAction = (action: () => void) => {
+    const handleAction = (action) => {
         action();
         setIsOpen(false);
     };
@@ -1094,7 +1053,7 @@ const ActionsDropdown: React.FC<{
     );
 };
 
-const ListView: React.FC<ListViewProps> = ({ notes, categories, activeFilter, favoritesByCategory, setActiveFilter, onEdit, onDelete, onToggleFavorite, onTogglePin, onChangeCategory, onOpenCategoryModal, onOpenSettingsModal, onOpenTemplateModal, searchQuery, onSearchChange, sortOrder, onSortChange, onExport, onImport, isSelectionMode, selectedNoteIds, onToggleSelectionMode, onSelectNote, onDeleteAll, onNavigate, trashedCount, onToggleChecklistItem }) => {
+const ListView = ({ notes, categories, activeFilter, favoritesByCategory, setActiveFilter, onEdit, onDelete, onToggleFavorite, onTogglePin, onChangeCategory, onOpenCategoryModal, onOpenSettingsModal, onOpenTemplateModal, searchQuery, onSearchChange, sortOrder, onSortChange, onExport, onImport, isSelectionMode, selectedNoteIds, onToggleSelectionMode, onSelectNote, onDeleteAll, onNavigate, trashedCount, onToggleChecklistItem }) => {
     
     const renderContent = () => {
         const hasNotes = activeFilter === 'ALL' ? notes.length > 0 : favoritesByCategory.some(g => g.notes.length > 0);
@@ -1213,20 +1172,7 @@ const ListView: React.FC<ListViewProps> = ({ notes, categories, activeFilter, fa
     );
 };
 
-interface TrashViewProps {
-    notes: Note[];
-    onRestore: (id: string) => void;
-    onDelete: (id: string) => void;
-    onEmptyTrash: () => void;
-    onNavigate: (view: View) => void;
-    isSelectionMode: boolean;
-    selectedNoteIds: string[];
-    onToggleSelectionMode: () => void;
-    onSelectNote: (id: string) => void;
-    onDeleteSelected: () => void;
-}
-
-const TrashView: React.FC<TrashViewProps> = ({ notes, onRestore, onDelete, onEmptyTrash, onNavigate, isSelectionMode, selectedNoteIds, onToggleSelectionMode, onSelectNote, onDeleteSelected }) => {
+const TrashView = ({ notes, onRestore, onDelete, onEmptyTrash, onNavigate, isSelectionMode, selectedNoteIds, onToggleSelectionMode, onSelectNote, onDeleteSelected }) => {
     return (
         <div className={isSelectionMode ? 'pb-24' : ''}>
             <header className="flex justify-between items-center py-4 mb-6 border-b border-slate-200 dark:border-slate-700">
@@ -1259,7 +1205,7 @@ const TrashView: React.FC<TrashViewProps> = ({ notes, onRestore, onDelete, onEmp
                                 >
                                     <div className="truncate">
                                         <h3 className="font-bold truncate">{note.title}</h3>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Удалено: {new Date(note.deletedAt!).toLocaleString()}</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">Удалено: {new Date(note.deletedAt).toLocaleString()}</p>
                                     </div>
                                     {!isSelectionMode && (
                                         <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
@@ -1293,10 +1239,10 @@ const TrashView: React.FC<TrashViewProps> = ({ notes, onRestore, onDelete, onEmp
 };
 
 
-const SortDropdown: React.FC<{ value: SortOrder, onChange: (order: SortOrder) => void }> = ({ value, onChange }) => {
+const SortDropdown = ({ value, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-    const options: { value: SortOrder, label: string }[] = [
+    const dropdownRef = useRef(null);
+    const options = [
         { value: 'updatedAt_desc', label: 'Сначала новые обновленные' },
         { value: 'updatedAt_asc', label: 'Сначала старые обновленные' },
         { value: 'createdAt_desc', label: 'Сначала новые созданные' },
@@ -1307,8 +1253,8 @@ const SortDropdown: React.FC<{ value: SortOrder, onChange: (order: SortOrder) =>
     const selectedLabel = options.find(opt => opt.value === value)?.label;
 
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setIsOpen(false);
             }
         };
@@ -1353,28 +1299,13 @@ const SortDropdown: React.FC<{ value: SortOrder, onChange: (order: SortOrder) =>
     );
 };
 
+const NoteCard = ({ note, categories, onEdit, onDelete, onToggleFavorite, onTogglePin, onChangeCategory, isSelectionMode, isSelected, onSelect, onToggleChecklistItem }) => {
 
-interface NoteCardProps {
-    note: Note;
-    categories: Category[];
-    onEdit: (note: Note) => void;
-    onDelete: (id: string) => void;
-    onToggleFavorite: (id: string) => void;
-    onTogglePin: (id: string) => void;
-    onChangeCategory: (noteId: string, categoryId: string | null) => void;
-    isSelectionMode: boolean;
-    isSelected: boolean;
-    onSelect: (id: string) => void;
-    onToggleChecklistItem: (noteId: string, itemIndex: number) => void;
-}
-
-const NoteCard: React.FC<NoteCardProps> = ({ note, categories, onEdit, onDelete, onToggleFavorite, onTogglePin, onChangeCategory, isSelectionMode, isSelected, onSelect, onToggleChecklistItem }) => {
-
-    const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        const target = e.target as HTMLElement;
+    const handleCardClick = (e) => {
+        const target = e.target;
 
         // If a checkbox was clicked, handle the toggle and stop further actions.
-        if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
+        if (target.tagName === 'INPUT' && target.type === 'checkbox') {
             e.preventDefault(); // Take control of the click to prevent race conditions
             const taskListItem = target.closest('li.task-list-item');
             if (taskListItem) {
@@ -1400,7 +1331,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, categories, onEdit, onDelete,
         }
     };
     
-    const colorClassMap: { [key: string]: string } = {
+    const colorClassMap = {
         red: 'bg-red-500',
         yellow: 'bg-yellow-500',
         green: 'bg-green-500',
@@ -1481,33 +1412,22 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, categories, onEdit, onDelete,
     );
 }
 
-
-interface NoteEditorProps {
-  note: Note | null;
-  categories: Category[];
-  templates: Template[];
-  onSave: (noteData: { title: string; content: string; isFavorite: boolean; categoryId: string | null, reminder: Reminder | null, journal: JournalEntry[], color: string | null }) => void;
-  onCancel: () => void;
-  theme: Theme;
-  showToast: (message: string, type?: ToastMessage['type']) => void;
-}
-
-const NoteEditor: React.FC<NoteEditorProps> = ({ note, categories, templates, onSave, onCancel, theme, showToast }) => {
+const NoteEditor = ({ note, categories, templates, onSave, onCancel, theme, showToast }) => {
   const [title, setTitle] = useState(note?.title || '');
   const [content, setContent] = useState(note?.content || '');
   const [isFavorite, setIsFavorite] = useState(note?.isFavorite || false);
   const [categoryId, setCategoryId] = useState(note?.categoryId || null);
-  const [reminder, setReminder] = useState<Reminder | null>(note?.reminder || null);
-  const [journal, setJournal] = useState<JournalEntry[]>(note?.journal || []);
-  const [color, setColor] = useState<string | null>(note?.color || null);
+  const [reminder, setReminder] = useState(note?.reminder || null);
+  const [journal, setJournal] = useState(note?.journal || []);
+  const [color, setColor] = useState(note?.color || null);
   
   const [showPreview, setShowPreview] = useState(false);
   const [isTemplateSelectorOpen, setTemplateSelectorOpen] = useState(false);
   const [isReminderModalOpen, setReminderModalOpen] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef(null);
   const [isExportMenuOpen, setExportMenuOpen] = useState(false);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
-  const exportButtonRef = useRef<HTMLButtonElement>(null);
+  const exportMenuRef = useRef(null);
+  const exportButtonRef = useRef(null);
 
   useEffect(() => {
     if(!isFavorite) {
@@ -1516,8 +1436,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, categories, templates, on
   }, [isFavorite])
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-        if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node) && !exportButtonRef.current?.contains(event.target as Node)) {
+    const handleClickOutside = (event) => {
+        if (exportMenuRef.current && !exportMenuRef.current.contains(event.target) && !exportButtonRef.current?.contains(event.target)) {
             setExportMenuOpen(false);
         }
     };
@@ -1535,14 +1455,14 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, categories, templates, on
     onSave({ title, content, isFavorite, categoryId, reminder, journal, color });
   };
   
-  const handleApplyTemplate = (template: Template) => {
+  const handleApplyTemplate = (template) => {
     setTitle(template.title);
     setContent(template.content);
     setTemplateSelectorOpen(false);
   };
 
   const addJournalEntry = () => {
-    const newEntry: JournalEntry = {
+    const newEntry = {
         id: Date.now().toString(),
         createdAt: Date.now(),
         content: ''
@@ -1550,16 +1470,16 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, categories, templates, on
     setJournal([newEntry, ...journal]);
   };
 
-  const updateJournalEntry = (id: string, newContent: string) => {
+  const updateJournalEntry = (id, newContent) => {
     setJournal(journal.map(entry => entry.id === id ? {...entry, content: newContent} : entry));
   };
 
-  const deleteJournalEntry = (id: string) => {
+  const deleteJournalEntry = (id) => {
     setJournal(journal.filter(entry => entry.id !== id));
   };
 
 
-  const handleExportNote = async (format: 'md' | 'html' | 'txt' | 'pdf') => {
+  const handleExportNote = async (format) => {
     const sanitizedTitle = (title.trim() || 'Без названия').replace(/[\\/:"*?<>|]/g, '_');
     
     if (format === 'pdf') {
@@ -1572,7 +1492,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, categories, templates, on
             const sanitizedBody = window.DOMPurify.sanitize(bodyHtml);
             const isDark = theme === 'dark';
             
-            const colorHexMap: { [key: string]: string } = {
+            const colorHexMap = {
                 red: '#ef4444', yellow: '#eab308', green: '#22c55e',
                 blue: '#3b82f6', purple: '#8b5cf6',
             };
@@ -1767,7 +1687,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, categories, templates, on
     }
   };
 
-  const applyFormat = (type: FormatType, prefix: string, suffix: string = '') => {
+  const applyFormat = (type, prefix, suffix = '') => {
         const textarea = textareaRef.current;
         if (!textarea) return;
 
@@ -1819,7 +1739,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, categories, templates, on
         }, 0);
     };
     
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const handleKeyDown = (e) => {
         if (e.ctrlKey || e.metaKey) {
             let applied = true;
             switch (e.key) {
@@ -2010,21 +1930,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ note, categories, templates, on
   );
 };
 
-// Fix: Add ReminderModal component definition
-interface ReminderModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSave: (reminder: Reminder | null) => void;
-    initialReminder: Reminder | null;
-    showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
-}
-
-const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, onSave, initialReminder, showToast }) => {
-    const [type, setType] = useState<Reminder['type']>('daily');
+const ReminderModal = ({ isOpen, onClose, onSave, initialReminder, showToast }) => {
+    const [type, setType] = useState('daily');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [times, setTimes] = useState<string[]>(['09:00']);
-    const [daysOfWeek, setDaysOfWeek] = useState<number[]>([]);
+    const [times, setTimes] = useState(['09:00']);
+    const [daysOfWeek, setDaysOfWeek] = useState([]);
 
     useEffect(() => {
         if (initialReminder) {
@@ -2051,7 +1962,7 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, onSave, 
         }
     };
 
-    const handleRemoveTime = (index: number) => {
+    const handleRemoveTime = (index) => {
         if (times.length > 1) {
             setTimes(times.filter((_, i) => i !== index));
         } else {
@@ -2059,13 +1970,13 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, onSave, 
         }
     };
 
-    const handleTimeChange = (index: number, value: string) => {
+    const handleTimeChange = (index, value) => {
         const newTimes = [...times];
         newTimes[index] = value;
         setTimes(newTimes);
     };
 
-    const handleDayToggle = (day: number) => {
+    const handleDayToggle = (day) => {
         setDaysOfWeek(prev => 
             prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
         );
@@ -2096,7 +2007,7 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, onSave, 
             return;
         }
 
-        const newReminder: Reminder = {
+        const newReminder = {
             type,
             startDate: startDateTime,
             endDate: endDateTime,
@@ -2122,7 +2033,7 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, onSave, 
             <div className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Тип повторения</label>
-                    <select value={type} onChange={e => setType(e.target.value as Reminder['type'])} className="w-full bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <select value={type} onChange={e => setType(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
                         <option value="single">Один раз</option>
                         <option value="daily">Ежедневно</option>
                         <option value="weekly">Еженедельно</option>
@@ -2217,7 +2128,7 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, onSave, 
     );
 };
 
-const ColorPicker: React.FC<{selectedColor: string | null, onSelectColor: (color: string | null) => void}> = ({ selectedColor, onSelectColor}) => {
+const ColorPicker = ({selectedColor, onSelectColor}) => {
     const colors = ['red', 'yellow', 'green', 'blue', 'purple'];
     return (
         <div className="flex items-center space-x-2 p-1 bg-slate-200 dark:bg-slate-700 rounded-full">
@@ -2237,18 +2148,18 @@ const ColorPicker: React.FC<{selectedColor: string | null, onSelectColor: (color
 };
 
 
-const LockScreen: React.FC<{pinHash: string, onUnlock: () => void, hashFn: (pin: string) => Promise<string>}> = ({ pinHash, onUnlock, hashFn }) => {
+const LockScreen = ({ pinHash, onUnlock, hashFn }) => {
     const [pin, setPin] = useState('');
     const [error, setError] = useState('');
     const [isChecking, setIsChecking] = useState(false);
 
-    const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePinChange = (e) => {
         const newPin = e.target.value.replace(/\D/g, ''); // Only allow digits
         setPin(newPin);
         if (error) setError('');
     };
     
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (pin.length < 4 || isChecking) return;
 
@@ -2289,16 +2200,7 @@ const LockScreen: React.FC<{pinHash: string, onUnlock: () => void, hashFn: (pin:
     );
 };
 
-const SettingsModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    pinHash: string | null;
-    setPinHash: (hash: string | null) => void;
-    hashFn: (pin: string) => Promise<string>;
-    showToast: (message: string, type?: ToastMessage['type']) => void;
-    theme: Theme;
-    setTheme: (theme: Theme) => void;
-}> = ({ isOpen, onClose, pinHash, setPinHash, hashFn, showToast, theme, setTheme }) => {
+const SettingsModal = ({ isOpen, onClose, pinHash, setPinHash, hashFn, showToast, theme, setTheme }) => {
     const [currentPin, setCurrentPin] = useState('');
     const [newPin, setNewPin] = useState('');
     const [confirmPin, setConfirmPin] = useState('');
@@ -2393,19 +2295,13 @@ const SettingsModal: React.FC<{
     );
 };
 
-const TemplateManagerModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    templates: Template[];
-    onSave: (template: {id?: string, title: string, content: string}) => boolean;
-    onDelete: (id: string) => void;
-}> = ({ isOpen, onClose, templates, onSave, onDelete }) => {
+const TemplateManagerModal = ({ isOpen, onClose, templates, onSave, onDelete }) => {
     
-    const [editingTemplate, setEditingTemplate] = useState<Template | {title: string, content: string} | null>(null);
+    const [editingTemplate, setEditingTemplate] = useState(null);
 
     const handleSave = () => {
         if (editingTemplate) {
-            const success = onSave(editingTemplate as Template);
+            const success = onSave(editingTemplate);
             if (success) {
                 setEditingTemplate(null);
             }
@@ -2416,7 +2312,7 @@ const TemplateManagerModal: React.FC<{
 
     if (editingTemplate) {
         return (
-             <Modal title={ (editingTemplate as Template).id ? "Редактировать шаблон" : "Новый шаблон" } isOpen={isOpen} onClose={() => setEditingTemplate(null)}>
+             <Modal title={ editingTemplate.id ? "Редактировать шаблон" : "Новый шаблон" } isOpen={isOpen} onClose={() => setEditingTemplate(null)}>
                 <div className="space-y-4">
                     <input
                         type="text"

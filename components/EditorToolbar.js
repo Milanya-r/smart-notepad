@@ -1,13 +1,7 @@
 import React from 'react';
 import { BoldIcon, ItalicIcon, HeadingIcon, LinkIcon, CodeBracketIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon, CheckCircleIcon } from './icons.js';
 
-export type FormatType = 'WRAP' | 'LINE_PREFIX';
-
-interface EditorToolbarProps {
-    onFormat: (type: FormatType, prefix: string, suffix?: string) => void;
-}
-
-const EditorToolbar: React.FC<EditorToolbarProps> = ({ onFormat }) => {
+const EditorToolbar = ({ onFormat }) => {
     
     const toolbarButtons = [
         { title: 'Жирный (Ctrl+B)', icon: <BoldIcon className="w-5 h-5"/>, action: () => onFormat('WRAP', '**', '**') },
