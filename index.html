@@ -68,31 +68,22 @@
       .dark .markdown-content li.task-list-item.done { color: #64748b; }
     </style>
   <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.2.0",
+      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
+    }
   }
-}
-</script>
-<!-- Add Babel to transpile JSX in the browser -->
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</head>
+  </script>
+  <!-- Add Babel to transpile JSX in the browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
   <body>
     <div id="root"></div>
-    <!-- 
-      This inline script is the new application entry point.
-      - type="text/babel" tells the browser to give this script to Babel.
-      - data-type="module" tells Babel to process it as an ES module, allowing 'import'.
-      - data-presets="react,typescript" tells Babel how to translate JSX and TypeScript syntax.
-      - Babel now handles the import of './App.tsx' and its entire dependency tree,
-        bypassing the browser's MIME type security error.
-    -->
     <script type="text/babel" data-type="module" data-presets="react,typescript">
       import React from 'react';
       import ReactDOM from 'react-dom/client';
-      import App from './App.tsx';
+      import App from './App.js';
 
       const rootElement = document.getElementById('root');
       if (!rootElement) {
