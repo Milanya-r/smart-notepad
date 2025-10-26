@@ -70,9 +70,9 @@
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/"
   }
 }
 </script>
@@ -81,7 +81,30 @@
 </head>
   <body>
     <div id="root"></div>
-    <!-- Tell Babel to transpile this script using react and typescript presets -->
-    <script type="text/babel" data-presets="react,typescript" data-type="module" src="./index.tsx"></script>
+    <!-- 
+      This inline script is the new application entry point.
+      - type="text/babel" tells the browser to give this script to Babel.
+      - data-type="module" tells Babel to process it as an ES module, allowing 'import'.
+      - data-presets="react,typescript" tells Babel how to translate JSX and TypeScript syntax.
+      - Babel now handles the import of './App.tsx' and its entire dependency tree,
+        bypassing the browser's MIME type security error.
+    -->
+    <script type="text/babel" data-type="module" data-presets="react,typescript">
+      import React from 'react';
+      import ReactDOM from 'react-dom/client';
+      import App from './App.tsx';
+
+      const rootElement = document.getElementById('root');
+      if (!rootElement) {
+        throw new Error("Could not find root element to mount to");
+      }
+
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+    </script>
   </body>
 </html>

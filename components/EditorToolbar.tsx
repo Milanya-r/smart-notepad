@@ -1,5 +1,5 @@
 import React from 'react';
-import { BoldIcon, ItalicIcon, HeadingIcon, LinkIcon, CodeBracketIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon, CheckCircleIcon } from './icons';
+import { BoldIcon, ItalicIcon, HeadingIcon, LinkIcon, CodeBracketIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon, CheckCircleIcon } from './icons.tsx';
 
 export type FormatType = 'WRAP' | 'LINE_PREFIX';
 
