@@ -3,13 +3,14 @@
 
 
 
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Note, Category, ToastMessage, Template, Reminder, JournalEntry } from './types';
-import { useLocalStorage } from './hooks/useLocalStorage';
-import { PlusIcon, FolderPlusIcon, StarIcon, PencilIcon, TrashIcon, ArrowLeftIcon, CheckIcon, XMarkIcon, SearchIcon, BellIcon, EyeIcon, EyeSlashIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ChevronUpDownIcon, ClipboardDocumentCheckIcon, ArchiveBoxXMarkIcon, CheckCircleIcon, PinIcon, PaintBrushIcon, ArrowUturnLeftIcon, Cog6ToothIcon, LockClosedIcon, EllipsisVerticalIcon, SunIcon, MoonIcon, DocumentDuplicateIcon, BoldIcon, ItalicIcon, HeadingIcon, LinkIcon, CodeBracketIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon, ShareIcon, ClockIcon, CalendarDaysIcon, ArrowPathIcon } from './components/icons';
-import Modal from './components/Modal';
-import Toast from './components/Toast';
-import EditorToolbar, { FormatType } from './components/EditorToolbar';
+import { Note, Category, ToastMessage, Template, Reminder, JournalEntry } from './types.ts';
+import { useLocalStorage } from './hooks/useLocalStorage.ts';
+import { PlusIcon, FolderPlusIcon, StarIcon, PencilIcon, TrashIcon, ArrowLeftIcon, CheckIcon, XMarkIcon, SearchIcon, BellIcon, EyeIcon, EyeSlashIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ChevronUpDownIcon, ClipboardDocumentCheckIcon, ArchiveBoxXMarkIcon, CheckCircleIcon, PinIcon, PaintBrushIcon, ArrowUturnLeftIcon, Cog6ToothIcon, LockClosedIcon, EllipsisVerticalIcon, SunIcon, MoonIcon, DocumentDuplicateIcon, BoldIcon, ItalicIcon, HeadingIcon, LinkIcon, CodeBracketIcon, ListBulletIcon, ListOrderedIcon, QuoteIcon, ShareIcon, ClockIcon, CalendarDaysIcon, ArrowPathIcon } from './components/icons.tsx';
+import Modal from './components/Modal.tsx';
+import Toast from './components/Toast.tsx';
+import EditorToolbar, { FormatType } from './components/EditorToolbar.tsx';
 
 // Make TS aware of the global libraries from the CDN
 declare global {
