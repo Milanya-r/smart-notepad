@@ -1,3 +1,4 @@
+
 // Fix: Declare global variables to inform TypeScript about libraries loaded via CDN.
 declare const React: any;
 declare const ReactDOM: any;
@@ -1627,8 +1628,8 @@ const App = () => {
       cancelEditCategory();
   };
 
-  // Fix: Add `any` type to parameter to resolve type error on `templateData.id`.
-  const handleSaveTemplate = (templateData: any) => {
+// Fix: Add a specific type to the templateData parameter to fix property access errors on unknown type.
+  const handleSaveTemplate = (templateData: { id?: string; title: string; content: string; }) => {
     if (templateData.title.trim() === '') {
         showToast('Название шаблона не может быть пустым', 'error');
         return false;
