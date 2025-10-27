@@ -73,6 +73,11 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+
   </head>
   <body>
     <div id="root"></div>
@@ -1245,26 +1250,13 @@
           );
       };
 
-      const SettingsModal = ({ isOpen, onClose, pinHash, setPinHash, hashFn, showToast, theme, setTheme }) => {
+      const SettingsModal = ({ isOpen, onClose, pinHash, setPinHash, hashFn, showToast, theme, setTheme, onEnablePushNotifications }) => {
           const [currentPin, setCurrentPin] = useState('');
           const [newPin, setNewPin] = useState('');
           const [confirmPin, setConfirmPin] = useState('');
           const [notificationPermission, setNotificationPermission] = useState('Notification' in window ? Notification.permission : 'unsupported');
           
           const resetForm = () => { setCurrentPin(''); setNewPin(''); setConfirmPin(''); };
-
-          const handleRequestNotificationPermission = () => {
-              if ('Notification' in window) {
-                  Notification.requestPermission().then(permission => {
-                      setNotificationPermission(permission);
-                      if (permission === 'granted') {
-                          showToast('Уведомления включены!', 'success');
-                      } else if (permission === 'denied') {
-                          showToast('Уведомления заблокированы.', 'error');
-                      }
-                  });
-              }
-          };
 
           const handleSetPin = async () => {
               if (newPin.length < 4 || newPin !== confirmPin) { showToast(newPin.length < 4 ? 'PIN-код должен содержать 4 цифры' : 'PIN-коды не совпадают', 'error'); return; }
@@ -1293,24 +1285,11 @@
                           </div>
                       </div>
                       <div>
-                          <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">Уведомления</h3>
-                          <div className="flex items-center justify-between p-4 rounded-lg bg-slate-100 dark:bg-slate-700/50">
-                              <div>
-                                  <p className="font-medium text-slate-800 dark:text-slate-200">Статус</p>
-                                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                                      {notificationPermission === 'granted' && 'Разрешены'}
-                                      {notificationPermission === 'denied' && 'Заблокированы'}
-                                      {notificationPermission === 'default' && 'Требуется разрешение'}
-                                      {notificationPermission === 'unsupported' && 'Не поддерживаются'}
-                                  </p>
-                              </div>
-                              {notificationPermission === 'default' && (
-                                  <button onClick={handleRequestNotificationPermission} className="px-4 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors text-sm">Включить</button>
-                              )}
+                          <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">Push-уведомления</h3>
+                          <div className="p-4 rounded-lg bg-slate-100 dark:bg-slate-700/50">
+                               <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">Включите, чтобы получать напоминания, даже когда приложение закрыто.</p>
+                               <button onClick={onEnablePushNotifications} className="w-full px-4 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors text-sm">Включить Push-уведомления</button>
                           </div>
-                          {notificationPermission === 'denied' && (
-                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Чтобы включить уведомления, измените настройки разрешений для этого сайта в вашем браузере.</p>
-                          )}
                       </div>
                       <div>
                           <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">Безопасность</h3>
@@ -1455,6 +1434,7 @@
           setActiveToast({ id: Date.now(), message, type });
         }, []);
 
+        // This local notification check is kept as a fallback or for non-push reminders
         useEffect(() => {
           if (!('Notification' in window) || !('serviceWorker' in navigator)) {
             return;
@@ -1489,22 +1469,19 @@
                   triggeredNotes.forEach(note => {
                       showToast(`Сработало напоминание: ${note.title}`, 'info');
                       if (Notification.permission === 'granted') {
-                          navigator.serviceWorker.ready.then(registration => {
-                              registration.active?.postMessage({
-                                  type: 'SHOW_NOTIFICATION',
-                                  payload: {
-                                      title: `Напоминание: ${note.title}`,
-                                      options: {
-                                          body: note.content.substring(0, 100) + (note.content.length > 100 ? '...' : ''),
-                                          icon: 'icon.svg',
-                                          badge: 'icon.svg',
-                                          vibrate: [200, 100, 200],
-                                          tag: `note-reminder-${note.id}`,
-                                          renotify: true,
-                                          data: { noteId: note.id },
-                                      }
-                                  }
-                              });
+                           navigator.serviceWorker.getRegistration().then(reg => {
+                              if (reg) {
+                                  reg.showNotification(`Напоминание: ${note.title}`, {
+                                      body: note.content.substring(0, 100) + (note.content.length > 100 ? '...' : ''),
+                                      icon: 'icon.svg',
+                                      badge: 'icon.svg',
+                                      vibrate: [200, 100, 200],
+                                      tag: `note-reminder-${note.id}-${Date.now()}`, // Ensure renotify works
+                                      renotify: true,
+                                      data: { noteId: note.id },
+                                      sound: '/notification.mp3' // Default sound
+                                  });
+                              }
                           });
                       }
                   });
@@ -1561,18 +1538,42 @@
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         };
 
+        const handleEnablePushNotifications = async () => {
+            if (!('firebase' in window) || !firebase.messaging.isSupported()) {
+                showToast('Push-уведомления не поддерживаются в этом браузере.', 'error');
+                return;
+            }
+
+            try {
+                const messaging = firebase.messaging();
+                const permission = await Notification.requestPermission();
+
+                if (permission === 'granted') {
+                    showToast('Разрешение на уведомления получено.', 'info');
+                    // Get registration token. Initially this makes a network call, once retrieved
+                    // subsequent calls to getToken will return from cache.
+                    // VAPID ключ нужно получить из Firebase Console: Project Settings -> Cloud Messaging -> Web Push certificates
+                    const token = await messaging.getToken({ vapidKey: 'BPE0Lfv2y7IakhcYrbVzkIwDCPiPh-HLe2KJAUD86VBED_9rysj-jFG-c1IzUXJmZLgTl0-IZC0zX9UglvEJU4Q' });
+                    
+                    if (token) {
+                        console.log('FCM Token:', token);
+                        // TODO: Send this token to your server (Firebase Function + Firestore)
+                        // and store it. For now, we just show a success message.
+                        showToast('Push-уведомления успешно включены!', 'success');
+                    } else {
+                        showToast('Не удалось получить токен для Push-уведомлений. Попробуйте обновить страницу.', 'error');
+                    }
+                } else {
+                    showToast('Вы не разрешили показ уведомлений.', 'error');
+                }
+            } catch (err) {
+                console.error('An error occurred while enabling push notifications. ', err);
+                showToast('Ошибка при включении Push-уведомлений. Убедитесь, что конфигурация Firebase верна.', 'error');
+            }
+        };
+
         const handleSaveNote = (noteData) => {
           const now = Date.now();
-          
-          if (noteData.reminder && 'Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission().then(permission => {
-              if (permission === 'denied') {
-                showToast('Уведомления заблокированы. Вы не получите напоминание.', 'error');
-              }
-            });
-          } else if (noteData.reminder && 'Notification' in window && Notification.permission === 'denied') {
-              showToast('Уведомления заблокированы. Включите их в настройках браузера.', 'error');
-          }
           
           let processedReminder = noteData.reminder;
           if (processedReminder) {
@@ -2098,6 +2099,7 @@
                   showToast={showToast}
                   theme={theme}
                   setTheme={setTheme}
+                  onEnablePushNotifications={handleEnablePushNotifications}
               />
               
               <Modal title="Переместить в корзину?" isOpen={noteToTrash !== null} onClose={() => setNoteToTrash(null)}>
@@ -2349,12 +2351,36 @@
         </React.StrictMode>
       );
       
-      // Register Service Worker for PWA
+      // =================================================================================
+      // ВСТАВЬТЕ ВАШУ КОНФИГУРАЦИЮ FIREBASE ЗДЕСЬ
+      // Вы найдете ее в Firebase Console: Project settings -> General -> Your apps -> SDK setup and configuration
+      // =================================================================================
+      const firebaseConfig = {
+        apiKey: "AIzaSyDy2phSHb80YLILjK1M06FpwpclHgxvJgz8",
+        authDomain: "smart-notepad-1de7f.firebaseapp.com",
+        projectId: "smart-notepad-1de7f",
+        storageBucket: "smart-notepad-1de7f.appspot.com",
+        messagingSenderId: "898845270205",
+        appId: "1:898845270205:web:ea28355a98aba55e32d7d4"
+      };
+      
+      // Initialize Firebase
+      if (typeof firebase !== 'undefined' && !firebase.apps.length && firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
+          firebase.initializeApp(firebaseConfig);
+      } else {
+        console.warn("Firebase config is not set. Push notifications will not work.");
+      }
+      
+      // Register Service Worker for PWA & Firebase
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
+          // Используем специальный файл для Firebase Messaging
           navigator.serviceWorker.register('service-worker.js')
             .then(registration => {
               console.log('ServiceWorker registration successful with scope: ', registration.scope);
+               if (typeof firebase !== 'undefined' && firebase.messaging.isSupported() && firebase.apps.length > 0) {
+                  firebase.messaging().useServiceWorker(registration);
+              }
             })
             .catch(err => {
               console.log('ServiceWorker registration failed: ', err);
