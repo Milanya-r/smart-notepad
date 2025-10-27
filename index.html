@@ -1355,6 +1355,7 @@
         const [notes, setNotes] = useLocalStorage('notes', []);
         const [categories, setCategories] = useLocalStorage('categories', []);
         const [templates, setTemplates] = useLocalStorage('templates', []);
+        const [fcmToken, setFcmToken] = useLocalStorage('fcmToken', null);
         const [activeToast, setActiveToast] = useState(null);
         const [view, setView] = useState('LIST');
         const [currentNote, setCurrentNote] = useState(null);
@@ -1433,64 +1434,7 @@
         const showToast = useCallback((message, type = 'info') => {
           setActiveToast({ id: Date.now(), message, type });
         }, []);
-
-        // This local notification check is kept as a fallback or for non-push reminders
-        useEffect(() => {
-          if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-            return;
-          }
-          
-          const intervalId = setInterval(() => {
-              const now = Date.now();
-              let notesChanged = false;
-              const updatedNotes = [...notes];
-              const triggeredNotes = [];
-
-              updatedNotes.forEach((note, index) => {
-                  if (note.reminder && note.reminder.nextDueDate && note.reminder.nextDueDate <= now) {
-                      triggeredNotes.push(note);
-                      
-                      const newNextDueDate = calculateNextDueDate(note.reminder, now);
-                      updatedNotes[index] = {
-                          ...note,
-                          reminder: {
-                              ...note.reminder,
-                              nextDueDate: newNextDueDate,
-                          },
-                          updatedAt: now,
-                      };
-                      notesChanged = true;
-                  }
-              });
-
-              if (notesChanged) {
-                  setNotes(updatedNotes);
-
-                  triggeredNotes.forEach(note => {
-                      showToast(`Сработало напоминание: ${note.title}`, 'info');
-                      if (Notification.permission === 'granted') {
-                           navigator.serviceWorker.getRegistration().then(reg => {
-                              if (reg) {
-                                  reg.showNotification(`Напоминание: ${note.title}`, {
-                                      body: note.content.substring(0, 100) + (note.content.length > 100 ? '...' : ''),
-                                      icon: 'icon.svg',
-                                      badge: 'icon.svg',
-                                      vibrate: [200, 100, 200],
-                                      tag: `note-reminder-${note.id}-${Date.now()}`, // Ensure renotify works
-                                      renotify: true,
-                                      data: { noteId: note.id },
-                                      sound: '/notification.mp3' // Default sound
-                                  });
-                              }
-                          });
-                      }
-                  });
-              }
-          }, 30000);
-
-          return () => clearInterval(intervalId);
-        }, [notes, setNotes, showToast]);
-
+        
         useEffect(() => {
           const handleUrlImport = () => {
               try {
@@ -1533,7 +1477,7 @@
         const hashPin = async (pin) => {
             const encoder = new TextEncoder();
             const data = encoder.encode(pin);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashBuffer = await crypto.subtle.digest('SHA-2-256', data);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         };
@@ -1550,24 +1494,23 @@
 
                 if (permission === 'granted') {
                     showToast('Разрешение на уведомления получено.', 'info');
-                    // Get registration token. Initially this makes a network call, once retrieved
-                    // subsequent calls to getToken will return from cache.
-                    // VAPID ключ нужно получить из Firebase Console: Project Settings -> Cloud Messaging -> Web Push certificates
                     const token = await messaging.getToken({ vapidKey: 'BPE0Lfv2y7IakhcYrbVzkIwDCPiPh-HLe2KJAUD86VBED_9rysj-jFG-c1IzUXJmZLgTl0-IZC0zX9UglvEJU4Q' });
                     
                     if (token) {
                         console.log('FCM Token:', token);
-                        // TODO: Send this token to your server (Firebase Function + Firestore)
-                        // and store it. For now, we just show a success message.
+                        setFcmToken(token); // Сохраняем токен для последующего использования
                         showToast('Push-уведомления успешно включены!', 'success');
                     } else {
+                        setFcmToken(null);
                         showToast('Не удалось получить токен для Push-уведомлений. Попробуйте обновить страницу.', 'error');
                     }
                 } else {
+                    setFcmToken(null);
                     showToast('Вы не разрешили показ уведомлений.', 'error');
                 }
             } catch (err) {
                 console.error('An error occurred while enabling push notifications. ', err);
+                setFcmToken(null);
                 showToast('Ошибка при включении Push-уведомлений. Убедитесь, что конфигурация Firebase верна.', 'error');
             }
         };
@@ -1576,25 +1519,63 @@
           const now = Date.now();
           
           let processedReminder = noteData.reminder;
+          let oldReminder = null;
+          
+          if (currentNote) {
+            oldReminder = notes.find(n => n.id === currentNote.id)?.reminder || null;
+          }
+
           if (processedReminder) {
               const nextDueDate = calculateNextDueDate(processedReminder, Date.now());
               processedReminder = { ...processedReminder, nextDueDate };
           }
 
+          const noteToSave = currentNote 
+            ? { ...notes.find(n => n.id === currentNote.id), ...noteData, reminder: processedReminder, updatedAt: now }
+            : {
+                id: now.toString(),
+                ...noteData,
+                reminder: processedReminder,
+                createdAt: now,
+                updatedAt: now,
+                isPinned: false,
+                deletedAt: null,
+              };
+
+          // --- Логика отправки на сервер (Cloud Function) ---
+          if (fcmToken) {
+            // URL вашей Cloud Function. Он появится в терминале после развертывания.
+            // Структура обычно: https://<region>-<project-id>.cloudfunctions.net/<functionName>
+            const CLOUD_FUNCTION_URL = 'https://us-central1-smart-notepad-1de7f.cloudfunctions.net/setReminder';
+            
+            fetch(CLOUD_FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: fcmToken,
+                    noteId: noteToSave.id,
+                    noteTitle: noteToSave.title,
+                    noteContent: noteToSave.content.substring(0, 100), // Отправляем превью контента
+                    newReminder: processedReminder, // Отправляем новое напоминание
+                    oldReminder: oldReminder, // Отправляем старое, чтобы сервер мог отменить предыдущие задачи
+                })
+            }).then(res => {
+                if (!res.ok) throw new Error('Server responded with an error');
+                console.log('Reminder scheduled successfully on server.');
+            }).catch(err => {
+                console.error('Failed to schedule reminder on server:', err);
+                showToast('Не удалось запланировать напоминание на сервере.', 'error');
+            });
+
+          } else if (processedReminder) {
+             showToast('Включите Push-уведомления в настройках, чтобы напоминания работали.', 'info');
+          }
+
           if (currentNote) {
-            setNotes(notes.map(n => n.id === currentNote.id ? { ...n, ...noteData, reminder: processedReminder, updatedAt: now } : n));
+            setNotes(notes.map(n => n.id === currentNote.id ? noteToSave : n));
             showToast('Заметка обновлена', 'success');
           } else {
-            const newNote = {
-              id: now.toString(),
-              ...noteData,
-              reminder: processedReminder,
-              createdAt: now,
-              updatedAt: now,
-              isPinned: false,
-              deletedAt: null,
-            };
-            setNotes([newNote, ...notes]);
+            setNotes([noteToSave, ...notes]);
             showToast('Заметка создана', 'success');
           }
           setView('LIST');
@@ -1752,7 +1733,7 @@
 
         const handleExportData = () => {
           try {
-            const data = JSON.stringify({ notes, categories, templates, theme }, null, 2);
+            const data = JSON.stringify({ notes, categories, templates, theme, fcmToken }, null, 2);
             const blob = new Blob([data], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1806,7 +1787,8 @@
                 }));
                 
                 const themeFromImport = parsedData.theme === 'light' ? 'light' : 'dark';
-                setDataToImport({ notes: notesWithDefaults, categories: parsedData.categories, templates: templatesWithDefaults, theme: themeFromImport });
+                const fcmTokenFromImport = parsedData.fcmToken || null;
+                setDataToImport({ notes: notesWithDefaults, categories: parsedData.categories, templates: templatesWithDefaults, theme: themeFromImport, fcmToken: fcmTokenFromImport });
                 setImportModalOpen(true);
               } else {
                 throw new Error('Invalid file structure');
@@ -1829,6 +1811,7 @@
               setCategories(dataToImport.categories);
               setTemplates(dataToImport.templates);
               setTheme(dataToImport.theme);
+              setFcmToken(dataToImport.fcmToken);
               showToast('Данные успешно импортированы!', 'success');
           }
           setImportModalOpen(false);
