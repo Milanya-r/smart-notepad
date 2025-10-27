@@ -2356,41 +2356,22 @@
       );
 
       // =================================================================================
-      // ВСТАВЬТЕ ВАШУ КОНФИГУРАЦИЮ FIREBASE ЗДЕСЬ
-      // Вы найдете ее в Firebase Console: Project settings -> General -> Your apps -> SDK setup and configuration
+      // Firebase Configuration
       // =================================================================================
       const firebaseConfig = {
-        apiKey: "AIzaSyDy2phSHb80YLILjK1M06FpwpclHgxvJgz8",
+        apiKey: "AIzaSyDy2phSHb80YLILjKLM06FpwpclHgxvJgz8",
         authDomain: "smart-notepad-1de7f.firebaseapp.com",
         projectId: "smart-notepad-1de7f",
         storageBucket: "smart-notepad-1de7f.appspot.com",
         messagingSenderId: "898845270205",
-        appId: "1:898845270205:web:ea28355a98aba55e32d7d4"
+        appId: "1:898845270205:web:ea28355a98aba55e32d7d4",
+        measurementId: "G-17HQLRRGNZ"
       };
 
       // Initialize Firebase
-      if (typeof firebase !== 'undefined' && !firebase.apps.length && firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
+      if (typeof firebase !== 'undefined' && !firebase.apps.length) {
           firebase.initializeApp(firebaseConfig);
           firebase.firestore(); // Инициализируем Firestore
-      } else {
-        console.warn("Firebase config is not set. Push notifications will not work.");
-      }
-
-      // Register Service Worker for PWA & Firebase
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          // Используем специальный файл для Firebase Messaging
-          navigator.serviceWorker.register('service-worker.js')
-            .then(registration => {
-              console.log('ServiceWorker registration successful with scope: ', registration.scope);
-               if (typeof firebase !== 'undefined' && firebase.messaging.isSupported() && firebase.apps.length > 0) {
-                  firebase.messaging().useServiceWorker(registration);
-              }
-            })
-            .catch(err => {
-              console.log('ServiceWorker registration failed: ', err);
-            });
-        });
       }
     </script>
   <script type="module" src="/index.tsx"></script>

@@ -26,19 +26,20 @@ const CDN_URLS = [
 
 
 // =================================================================================
-// ВСТАВЬТЕ ТУ ЖЕ САМУЮ КОНФИГУРАЦИЮ FIREBASE, ЧТО И В index.html
+// Firebase Configuration
 // =================================================================================
 const firebaseConfig = {
-    apiKey: "AIzaSyDy2phSHb80YLILjK1M06FpwpclHgxvJgz8",
-    authDomain: "smart-notepad-1de7f.firebaseapp.com",
-    projectId: "smart-notepad-1de7f",
-    storageBucket: "smart-notepad-1de7f.appspot.com",
-    messagingSenderId: "898845270205",
-    appId: "1:898845270205:web:ea28355a98aba55e32d7d4"
+  apiKey: "AIzaSyDy2phSHb80YLILjKLM06FpwpclHgxvJgz8",
+  authDomain: "smart-notepad-1de7f.firebaseapp.com",
+  projectId: "smart-notepad-1de7f",
+  storageBucket: "smart-notepad-1de7f.appspot.com",
+  messagingSenderId: "898845270205",
+  appId: "1:898845270205:web:ea28355a98aba55e32d7d4",
+  measurementId: "G-17HQLRRGNZ"
 };
 
 // Инициализация Firebase в Service Worker
-if (!firebase.apps.length && firebaseConfig.apiKey !== "YOUR_API_KEY_HERE") {
+if (typeof firebase !== 'undefined' && !firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
   const messaging = firebase.messaging();
 
