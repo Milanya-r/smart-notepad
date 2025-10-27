@@ -1,4 +1,5 @@
 
+
 // Fix: Declare global variables to inform TypeScript about libraries loaded via CDN.
 declare const React: any;
 declare const ReactDOM: any;
@@ -1244,7 +1245,8 @@ const SettingsModal = ({ isOpen, onClose, pinHash, setPinHash, hashFn, showToast
 };
 
 const TemplateManagerModal = ({ isOpen, onClose, templates, onSave, onDelete }) => {
-    const [editingTemplate, setEditingTemplate] = useState(null);
+    // Fix: Explicitly type the `editingTemplate` state to resolve an error where its properties were being accessed while it had an `unknown` type.
+    const [editingTemplate, setEditingTemplate] = useState<{ id?: string; title: string; content: string; } | null>(null);
     const handleSave = () => {
         if (editingTemplate && onSave(editingTemplate)) setEditingTemplate(null);
     };

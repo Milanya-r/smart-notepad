@@ -932,8 +932,7 @@
                       <div class="pdf-container" style="border-left: 5px solid ${noteBorderColor};">
                           <div class="markdown-content"><h1>${title}</h1>${sanitizedBody}</div>
                       </div>
-                    <script type="module" src="/index.tsx"></script>
-</body>`;
+                    <\/body>`;
                   document.body.appendChild(printElement);
                   
                   const canvas = await html2canvas(printElement.querySelector('.pdf-container'), { scale: 2, useCORS: true, backgroundColor: isDark ? '#0f172a' : '#ffffff' });
@@ -980,7 +979,7 @@
                 const sanitizedBody = DOMPurify.sanitize(bodyHtml);
                 const isDark = theme === 'dark';
                 const htmlStyles = `body { font-family: sans-serif; line-height: 1.6; padding: 2em; background-color: ${isDark ? '#0f172a' : '#ffffff'}; color: ${isDark ? '#e2e8f0' : '#1e293b'}; } .markdown-content { max-width: 720px; margin: 0 auto; }`;
-                contentToExport = `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>${sanitizedTitle}</title><style>${htmlStyles}</style></head><body class="${isDark ? 'dark' : ''}"><div class="markdown-content"><h1>${title}</h1>${sanitizedBody}</div></body></html>`;
+                contentToExport = `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>${sanitizedTitle}</title><style>${htmlStyles}</style></head><body class="${isDark ? 'dark' : ''}"><div class="markdown-content"><h1>${title}</h1>${sanitizedBody}</div><\/body><\/html>`;
                 mimeType = 'text/html;charset=utf-8;';
                 break;
           }
@@ -2394,5 +2393,6 @@
         });
       }
     </script>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>
