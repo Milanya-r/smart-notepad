@@ -77,7 +77,7 @@
   <body>
     <div id="root"></div>
     <script type="text/babel" data-presets="react">
-      const { useState, useEffect, useMemo, useRef } = React;
+      const { useState, useEffect, useMemo, useRef, useCallback } = React;
       
       // --- Start of Bundled Code ---
 
@@ -1249,7 +1249,23 @@
           const [currentPin, setCurrentPin] = useState('');
           const [newPin, setNewPin] = useState('');
           const [confirmPin, setConfirmPin] = useState('');
+          const [notificationPermission, setNotificationPermission] = useState('Notification' in window ? Notification.permission : 'unsupported');
+          
           const resetForm = () => { setCurrentPin(''); setNewPin(''); setConfirmPin(''); };
+
+          const handleRequestNotificationPermission = () => {
+              if ('Notification' in window) {
+                  Notification.requestPermission().then(permission => {
+                      setNotificationPermission(permission);
+                      if (permission === 'granted') {
+                          showToast('Уведомления включены!', 'success');
+                      } else if (permission === 'denied') {
+                          showToast('Уведомления заблокированы.', 'error');
+                      }
+                  });
+              }
+          };
+
           const handleSetPin = async () => {
               if (newPin.length < 4 || newPin !== confirmPin) { showToast(newPin.length < 4 ? 'PIN-код должен содержать 4 цифры' : 'PIN-коды не совпадают', 'error'); return; }
               const newHash = await hashFn(newPin); setPinHash(newHash); showToast('PIN-код успешно установлен!', 'success'); resetForm();
@@ -1275,6 +1291,26 @@
                               <button onClick={() => setTheme('light')} className={`w-full flex items-center justify-center space-x-2 p-2 rounded-md text-sm font-semibold transition-colors ${theme === 'light' ? 'bg-white text-cyan-600 shadow-sm' : 'text-slate-600 dark:text-slate-300'}`}><SunIcon className="w-5 h-5" /><span>Светлая</span></button>
                                <button onClick={() => setTheme('dark')} className={`w-full flex items-center justify-center space-x-2 p-2 rounded-md text-sm font-semibold transition-colors ${theme === 'dark' ? 'bg-slate-800 text-cyan-400 shadow-sm' : 'text-slate-600 dark:text-slate-300'}`}><MoonIcon className="w-5 h-5" /><span>Темная</span></button>
                           </div>
+                      </div>
+                      <div>
+                          <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">Уведомления</h3>
+                          <div className="flex items-center justify-between p-4 rounded-lg bg-slate-100 dark:bg-slate-700/50">
+                              <div>
+                                  <p className="font-medium text-slate-800 dark:text-slate-200">Статус</p>
+                                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                                      {notificationPermission === 'granted' && 'Разрешены'}
+                                      {notificationPermission === 'denied' && 'Заблокированы'}
+                                      {notificationPermission === 'default' && 'Требуется разрешение'}
+                                      {notificationPermission === 'unsupported' && 'Не поддерживаются'}
+                                  </p>
+                              </div>
+                              {notificationPermission === 'default' && (
+                                  <button onClick={handleRequestNotificationPermission} className="px-4 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors text-sm">Включить</button>
+                              )}
+                          </div>
+                          {notificationPermission === 'denied' && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Чтобы включить уведомления, измените настройки разрешений для этого сайта в вашем браузере.</p>
+                          )}
                       </div>
                       <div>
                           <h3 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">Безопасность</h3>
@@ -1415,23 +1451,25 @@
           localStorage.setItem('smart-notepad-reminder-migrated-v2', 'true');
         }, []);
 
+        const showToast = useCallback((message, type = 'info') => {
+          setActiveToast({ id: Date.now(), message, type });
+        }, []);
+
         useEffect(() => {
-          if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
+          if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+            return;
           }
           
           const intervalId = setInterval(() => {
               const now = Date.now();
               let notesChanged = false;
               const updatedNotes = [...notes];
+              const triggeredNotes = [];
 
               updatedNotes.forEach((note, index) => {
                   if (note.reminder && note.reminder.nextDueDate && note.reminder.nextDueDate <= now) {
-                      if (Notification.permission === 'granted') {
-                          new Notification(`Напоминание: ${note.title}`, {
-                              body: note.content.substring(0, 100) + (note.content.length > 100 ? '...' : ''),
-                          });
-                      }
+                      triggeredNotes.push(note);
+                      
                       const newNextDueDate = calculateNextDueDate(note.reminder, now);
                       updatedNotes[index] = {
                           ...note,
@@ -1447,12 +1485,31 @@
 
               if (notesChanged) {
                   setNotes(updatedNotes);
-                  showToast('Сработало напоминание!', 'info');
+
+                  triggeredNotes.forEach(note => {
+                      showToast(`Сработало напоминание: ${note.title}`, 'info');
+                      if (Notification.permission === 'granted') {
+                          navigator.serviceWorker.ready.then(registration => {
+                              registration.active?.postMessage({
+                                  type: 'SHOW_NOTIFICATION',
+                                  payload: {
+                                      title: `Напоминание: ${note.title}`,
+                                      options: {
+                                          body: note.content.substring(0, 100) + (note.content.length > 100 ? '...' : ''),
+                                          icon: 'icon.svg',
+                                          badge: 'icon.svg',
+                                          data: { noteId: note.id },
+                                      }
+                                  }
+                              });
+                          });
+                      }
+                  });
               }
           }, 30000);
 
           return () => clearInterval(intervalId);
-        }, [notes, setNotes]);
+        }, [notes, setNotes, showToast]);
 
         useEffect(() => {
           const handleUrlImport = () => {
@@ -1491,11 +1548,7 @@
               }
           };
           handleUrlImport();
-        }, [setNotes]);
-
-        const showToast = (message, type = 'info') => {
-          setActiveToast({ id: Date.now(), message, type });
-        };
+        }, [setNotes, showToast]);
         
         const hashPin = async (pin) => {
             const encoder = new TextEncoder();
@@ -1508,13 +1561,13 @@
         const handleSaveNote = (noteData) => {
           const now = Date.now();
           
-          if (noteData.reminder && Notification.permission === 'default') {
+          if (noteData.reminder && 'Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission().then(permission => {
               if (permission === 'denied') {
                 showToast('Уведомления заблокированы. Вы не получите напоминание.', 'error');
               }
             });
-          } else if (noteData.reminder && Notification.permission === 'denied') {
+          } else if (noteData.reminder && 'Notification' in window && Notification.permission === 'denied') {
               showToast('Уведомления заблокированы. Включите их в настройках браузера.', 'error');
           }
           
