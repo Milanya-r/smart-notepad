@@ -651,7 +651,9 @@ const SortDropdown = ({ value, onChange }) => {
     );
 };
 
-const NoteCard = ({ note, categories, onEdit, onDelete, onToggleFavorite, onTogglePin, onChangeCategory, isSelectionMode, isSelected, onSelect, onToggleChecklistItem }) => {
+// Fix: Changed component signature to accept `props` to resolve issue with `key` prop typing.
+const NoteCard = (props) => {
+    const { note, categories, onEdit, onDelete, onToggleFavorite, onTogglePin, onChangeCategory, isSelectionMode, isSelected, onSelect, onToggleChecklistItem } = props;
 
     const handleCardClick = (e) => {
         const target = e.target;
