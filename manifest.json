@@ -1,17 +1,78 @@
 {
   "short_name": "Блокнот",
   "name": "Умный Блокнот",
-  "icons": [
-    {
-      "src": "icon.svg",
-      "type": "image/svg+xml",
-      "sizes": "192x192 512x512"
-    }
-  ],
+  "id": "/",
   "start_url": ".",
+  "scope": ".",
+  "lang": "ru-RU",
+  "dir": "ltr",
+  "orientation": "portrait-primary",
   "display": "standalone",
   "theme_color": "#0891b2",
   "background_color": "#f8fafc",
   "description": "Умный блокнот для создания, редактирования и организации заметок с локальным хранением.",
-  "gcm_sender_id": "103953800507"
+  "gcm_sender_id": "103953800507",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "utilities",
+    "lifestyle",
+    "personalization"
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot-list.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Просмотр списка заметок с категориями и поиском."
+    },
+    {
+      "src": "screenshot-editor.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Редактор заметок с поддержкой Markdown и напоминаниями."
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Создать новую заметку",
+      "short_name": "Новая заметка",
+      "description": "Быстро создать пустую заметку",
+      "url": "/#new-note",
+      "icons": [{ "src": "icon-shortcut-new.png", "sizes": "96x96" }]
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text"
+    }
+  },
+  "note_taking": {
+    "new_note_url": "/#new-note"
+  }
 }
