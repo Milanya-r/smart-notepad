@@ -136,9 +136,9 @@ const ArrowUpTrayIcon = ({ className = 'w-6 h-6' }) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
     </svg>
 );
-const ChevronUpDownIcon = ({ className = 'w-6 h-6' }) => (
+const Bars3Icon = ({ className = 'w-6 h-6' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
     </svg>
 );
 const ClipboardDocumentCheckIcon = ({ className = 'w-6 h-6' }) => (
@@ -266,7 +266,7 @@ const App = () => {
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [activeCategoryId, setActiveCategoryId] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isSidebarVisible, setSidebarVisible] = useState(true);
+  const [isSidebarVisible, setSidebarVisible] = useState(false);
   const [theme, setTheme] = useLocalStorage('theme', 'system');
 
   useEffect(() => {
@@ -289,6 +289,9 @@ const App = () => {
     };
     setNotes(prev => [newNote, ...prev]);
     setActiveNoteId(newNote.id);
+    if (window.innerWidth < 768) {
+        setSidebarVisible(false);
+    }
   };
 
   useEffect(() => {
@@ -298,13 +301,11 @@ const App = () => {
           
           if (hash === '#new-note') {
               createNewNote();
-              // Clean up hash to avoid re-triggering
               history.pushState("", document.title, window.location.pathname + window.location.search);
           } else if (params.has('text') || params.has('title')) {
               const sharedText = params.get('text') || '';
               const sharedTitle = params.get('title') || 'Заметка извне';
               createNewNote(`${sharedTitle}\n\n${sharedText}`);
-              // Clean up params to avoid re-triggering
               history.pushState({}, '', window.location.pathname);
           }
       };
@@ -314,10 +315,6 @@ const App = () => {
       
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            // The execution environment has an unusual configuration that causes relative paths
-            // to resolve to the wrong origin. To fix this, we construct an absolute URL
-            // for the service worker script and omit the 'scope' option, allowing the browser
-            // to default the scope correctly based on the script's valid location.
             const swUrl = `${window.location.origin}/service-worker.js`;
             navigator.serviceWorker.register(swUrl)
               .then(reg => console.log('Service Worker registered successfully:', reg))
@@ -359,14 +356,13 @@ const App = () => {
 
   const getSanitizedHtml = (markdown) => {
     const rawHtml = marked.parse(markdown, { gfm: true, breaks: true });
-    // Add support for GitHub-style task lists
     const withTasks = rawHtml.replace(/<li>\[ \] (.*?)<\/li>/g, '<li class="task-list-item"><input type="checkbox" disabled> $1</li>')
                              .replace(/<li>\[x\] (.*?)<\/li>/g, '<li class="task-list-item done"><input type="checkbox" checked disabled> $1</li>');
     return DOMPurify.sanitize(withTasks);
   };
   
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans overflow-hidden">
       {/* Sidebar */}
       <aside className={`w-80 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col transition-transform duration-300 ${isSidebarVisible ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:relative absolute z-20 h-full`}>
         <div className="p-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-700">
@@ -399,7 +395,7 @@ const App = () => {
               <li key={cat.id}>
                 <a 
                   href="#"
-                  onClick={(e) => { e.preventDefault(); setActiveCategoryId(cat.id); }}
+                  onClick={(e) => { e.preventDefault(); setActiveCategoryId(cat.id); setSidebarVisible(false); }}
                   className={`flex items-center gap-3 px-3 py-2 rounded-md font-medium text-sm ${activeCategoryId === cat.id ? 'bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300' : 'hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                 >
                   {cat.name}
@@ -411,16 +407,21 @@ const App = () => {
       </aside>
 
       {/* Note List */}
-      <div className="w-96 border-r border-slate-200 dark:border-slate-700 flex-col flex-shrink-0 hidden md:flex">
-         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
-            <h2 className="text-lg font-semibold">{categories.find(c => c.id === activeCategoryId)?.name || 'Заметки'}</h2>
-            <p className="text-sm text-slate-500">{filteredNotes.length} заметок</p>
+      <div className={`w-full flex-shrink-0 flex-col border-r border-slate-200 dark:border-slate-700 md:w-96 ${activeNoteId ? 'hidden md:flex' : 'flex'}`}>
+         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 flex items-center justify-between h-16">
+            <div>
+              <h2 className="text-lg font-semibold">{categories.find(c => c.id === activeCategoryId)?.name || 'Заметки'}</h2>
+              <p className="text-sm text-slate-500">{filteredNotes.length} заметок</p>
+            </div>
+            <button onClick={() => setSidebarVisible(true)} className="md:hidden p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
+              <Bars3Icon className="w-6 h-6"/>
+            </button>
          </div>
          <div className="overflow-y-auto flex-1">
             {filteredNotes.map(note => (
               <div 
                 key={note.id} 
-                onClick={() => { setActiveNoteId(note.id); if (window.innerWidth < 768) setSidebarVisible(false); }}
+                onClick={() => { setActiveNoteId(note.id); }}
                 className={`p-4 border-b border-slate-200 dark:border-slate-700 cursor-pointer ${activeNoteId === note.id ? 'bg-cyan-50 dark:bg-slate-800' : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}
               >
                   <div className="flex justify-between items-start">
@@ -437,23 +438,23 @@ const App = () => {
       </div>
       
       {/* Main Content */}
-      <main className="flex-1 flex flex-col">
+      <main className={`flex-1 flex-col ${activeNoteId ? 'flex' : 'hidden md:flex'}`}>
         {activeNote ? (
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 flex flex-col min-w-0 h-full">
             {/* Editor Header */}
             <header className="flex-shrink-0 p-2 h-16 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-               <div className="flex items-center gap-2">
-                  <button onClick={() => setSidebarVisible(!isSidebarVisible)} className="md:hidden p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
-                    <ChevronUpDownIcon className="w-6 h-6"/>
+               <div className="flex items-center gap-2 min-w-0">
+                  <button onClick={() => setActiveNoteId(null)} className="md:hidden p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <ArrowLeftIcon className="w-6 h-6"/>
                   </button>
                   <input 
                     type="text" 
                     value={activeNote.title}
                     onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
-                    className="text-lg font-semibold bg-transparent focus:outline-none focus:ring-0 border-0 p-1 w-full"
+                    className="text-lg font-semibold bg-transparent focus:outline-none focus:ring-0 border-0 p-1 w-full truncate"
                   />
                </div>
-               <div className="flex items-center gap-2">
+               <div className="flex items-center gap-2 flex-shrink-0">
                  <button onClick={() => updateNote(activeNote.id, { isFavorite: !activeNote.isFavorite })} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
                     <StarIcon filled={activeNote.isFavorite} className={`w-5 h-5 ${activeNote.isFavorite ? 'text-yellow-400' : 'text-slate-500'}`} />
                  </button>
@@ -483,7 +484,7 @@ const App = () => {
 
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400">
+          <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400 p-4">
             <DocumentDuplicateIcon className="w-24 h-24 text-slate-300 dark:text-slate-600" />
             <h2 className="mt-4 text-xl font-medium">Выберите заметку для просмотра</h2>
             <p className="mt-1">Или создайте новую, чтобы начать.</p>
