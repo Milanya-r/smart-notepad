@@ -18,11 +18,13 @@ const firebaseConfig = {
     measurementId: "G-17HQLRRGNZ"
 };
 
+let db, messaging;
 if (typeof firebase !== 'undefined' && !firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    messaging = firebase.messaging();
 }
-const db = firebase.firestore();
-const messaging = firebase.messaging();
+
 
 // --- Hooks ---
 function useLocalStorage(key, initialValue) {
@@ -121,6 +123,76 @@ const PinIcon = ({ className = 'w-6 h-6', filled = false, rotated = false }) => 
         {filled && <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />}
     </svg>
 );
+const BoldIcon = ({ className = 'w-6 h-6' }) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h4.5a3 3 0 0 1 0 6h-4.5m0 0H6.75m1.5 0v6m0-6h4.5a3 3 0 0 1 0 6h-4.5m0 0v6" /></svg>;
+const ItalicIcon = ({ className = 'w-6 h-6' }) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 15" /></svg>;
+const ListBulletIcon = ({ className = 'w-6 h-6' }) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>;
+const CodeBracketIcon = ({ className = 'w-6 h-6' }) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" /></svg>;
+
+// --- Helper Functions ---
+function calculateNextSendAt(reminder, fromDate = new Date()) {
+    if (!reminder || !reminder.type || !reminder.startDate || !reminder.times?.length) return null;
+
+    const fromTime = fromDate.getTime();
+    let searchDate = new Date(reminder.startDate);
+    searchDate.setHours(0, 0, 0, 0);
+
+    const sortedTimes = reminder.times
+        .map(t => { const [h, m] = t.split(':').map(Number); return { h, m }; })
+        .sort((a, b) => a.h * 60 + a.m - (b.h * 60 + b.m));
+
+    if (reminder.type === "single") {
+        for (const time of sortedTimes) {
+            const dueDate = new Date(searchDate);
+            dueDate.setHours(time.h, time.m, 0, 0);
+            if (dueDate.getTime() > fromTime) {
+                return dueDate.getTime();
+            }
+        }
+        return null; // All times for the single date have passed
+    }
+    
+    // Start searching from today or the reminder's start date, whichever is later
+    let searchFrom = new Date(fromDate);
+    searchFrom.setHours(0,0,0,0);
+    if(searchFrom.getTime() < searchDate.getTime()){
+        searchFrom = new Date(searchDate);
+    }
+
+
+    // Limit search to 2 years to prevent infinite loops
+    for (let i = 0; i < 730; i++) {
+        let isValidDay = false;
+        switch (reminder.type) {
+            case "daily":
+                isValidDay = true;
+                break;
+            case "weekly":
+                isValidDay = reminder.daysOfWeek?.includes(searchFrom.getDay()) ?? false;
+                break;
+            case "monthly":
+                // Handles month-end cases by capping at last day of month
+                const reminderDay = new Date(reminder.startDate).getDate();
+                const lastDayOfMonth = new Date(searchFrom.getFullYear(), searchFrom.getMonth() + 1, 0).getDate();
+                isValidDay = searchFrom.getDate() === Math.min(reminderDay, lastDayOfMonth);
+                break;
+        }
+
+        if (isValidDay) {
+            for (const time of sortedTimes) {
+                const dueDate = new Date(searchFrom);
+                dueDate.setHours(time.h, time.m, 0, 0);
+                if (dueDate.getTime() > fromTime) {
+                    if (reminder.endDate && dueDate.getTime() > new Date(reminder.endDate).getTime()) {
+                        return null; // Past end date
+                    }
+                    return dueDate.getTime();
+                }
+            }
+        }
+        searchFrom.setDate(searchFrom.getDate() + 1);
+    }
+    return null;
+}
 
 const App = () => {
   const [notes, setNotes] = useLocalStorage('notes', []);
@@ -130,6 +202,7 @@ const App = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarVisible, setSidebarVisible] = useState(false);
   const [theme, setTheme] = useLocalStorage('theme', 'system');
+  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
 
   useEffect(() => {
     if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -139,6 +212,13 @@ const App = () => {
     }
   }, [theme]);
   
+  const showToast = (message, type = 'info', duration = 3000) => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+        setToast(prev => prev.show ? { show: false, message: '', type: 'info' } : prev);
+    }, duration);
+  };
+
   const createNewNote = (content = '') => {
     const newNote = {
       id: Date.now().toString(),
@@ -161,7 +241,27 @@ const App = () => {
   };
 
   useEffect(() => {
-    // Other initializations...
+    const handleHashChange = () => {
+        const hash = window.location.hash;
+        if (hash.startsWith('#note=')) {
+            const noteId = hash.substring(6);
+            if (notes.find(n => n.id === noteId)) {
+                setActiveNoteId(noteId);
+            }
+        } else if (hash === '#new-note') {
+            createNewNote();
+            // Clear hash to allow re-triggering
+            history.pushState("", document.title, window.location.pathname + window.location.search);
+        }
+    };
+
+    window.addEventListener('hashchange', handleHashChange, false);
+    handleHashChange(); // Run on initial load
+
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [notes]); // Re-run if notes change to find the note
+
+  useEffect(() => {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/service-worker.js')
@@ -182,7 +282,60 @@ const App = () => {
     if (activeNoteId === id) {
       setActiveNoteId(null);
     }
+    // Also delete any associated reminder
+    if (db) {
+        db.collection('reminders').doc(id).delete().catch(err => console.error("Error deleting reminder from Firestore:", err));
+    }
   };
+
+  const setReminder = async (note, reminderData) => {
+    if (!messaging || !db) {
+        showToast("Система уведомлений не инициализирована.", "error");
+        return;
+    }
+
+    try {
+        await messaging.requestPermission();
+        const token = await messaging.getToken();
+        
+        const firstSendAt = calculateNextSendAt(reminderData);
+        if (!firstSendAt) {
+            showToast("Не удалось рассчитать время для напоминания. Проверьте даты.", "error");
+            return;
+        }
+
+        await db.collection('reminders').doc(note.id).set({
+            title: note.title,
+            content: note.content.substring(0, 100) || 'Посмотрите свою заметку.',
+            token: token,
+            sendAt: firstSendAt,
+            reminderData: reminderData
+        });
+
+        updateNote(note.id, { reminder: reminderData });
+        showToast("Напоминание успешно установлено!", "success");
+
+    } catch (err) {
+        console.error("Error setting reminder:", err);
+        showToast("Ошибка при установке напоминания. Убедитесь, что уведомления разрешены.", "error", 5000);
+    }
+  };
+
+  const deleteReminder = async (noteId) => {
+     if (!db) {
+        showToast("Система уведомлений не инициализирована.", "error");
+        return;
+    }
+    try {
+        await db.collection('reminders').doc(noteId).delete();
+        updateNote(noteId, { reminder: null });
+        showToast("Напоминание удалено.", "success");
+    } catch (err) {
+        console.error("Error deleting reminder:", err);
+        showToast("Ошибка при удалении напоминания.", "error");
+    }
+  };
+
 
   const activeNote = useMemo(() => notes.find(note => note.id === activeNoteId), [notes, activeNoteId]);
 
@@ -207,18 +360,25 @@ const App = () => {
   
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans overflow-hidden">
+      {toast.show && <Toast message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, show: false })} />}
       {isSidebarVisible && (
         <div 
-          className="fixed inset-0 bg-black/30 z-10 md:hidden"
+          className="fixed inset-0 bg-black/30 z-30 md:hidden"
           onClick={() => setSidebarVisible(false)}
+          aria-hidden="true"
         ></div>
       )}
-      <aside className={`w-80 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col transition-transform duration-300 ${isSidebarVisible ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:relative absolute z-20 h-full`}>
+      <aside className={`w-80 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col transition-transform duration-300 ${isSidebarVisible ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-40 h-full`}>
         <div className="p-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-700">
           <h1 className="text-xl font-bold text-cyan-600">Умный Блокнот</h1>
-          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
-            {theme === 'dark' ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
-          </button>
+          <div className="flex items-center">
+            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Toggle theme">
+              {theme === 'dark' ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+            </button>
+             <button onClick={() => setSidebarVisible(false)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 md:hidden ml-2" aria-label="Close sidebar">
+                <XMarkIcon className="w-6 h-6"/>
+            </button>
+          </div>
         </div>
         <div className="p-4">
           <button onClick={() => createNewNote()} className="w-full flex items-center justify-center gap-2 bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition-colors">
@@ -235,6 +395,7 @@ const App = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              aria-label="Search notes"
             />
           </div>
         </div>
@@ -255,13 +416,13 @@ const App = () => {
         </nav>
       </aside>
 
-      <div className={`w-full flex-shrink-0 flex-col border-r border-slate-200 dark:border-slate-700 md:w-96 ${activeNoteId ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`w-full flex-shrink-0 flex-col border-r border-slate-200 dark:border-slate-700 md:w-96 ${activeNoteId && window.innerWidth < 768 ? 'hidden' : 'flex'}`}>
          <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 flex items-center justify-between h-16">
             <div>
               <h2 className="text-lg font-semibold">{categories.find(c => c.id === activeCategoryId)?.name || 'Заметки'}</h2>
               <p className="text-sm text-slate-500">{filteredNotes.length} заметок</p>
             </div>
-            <button onClick={() => setSidebarVisible(true)} className="md:hidden p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
+            <button onClick={() => setSidebarVisible(true)} className="md:hidden p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Open sidebar">
               <Bars3Icon className="w-6 h-6"/>
             </button>
          </div>
@@ -291,7 +452,7 @@ const App = () => {
       
       <main className={`flex-1 flex-col ${activeNoteId ? 'flex' : 'hidden md:flex'}`}>
         {activeNote ? (
-          <Editor activeNote={activeNote} updateNote={updateNote} deleteNote={deleteNote} setActiveNoteId={setActiveNoteId} getSanitizedHtml={getSanitizedHtml} />
+          <Editor activeNote={activeNote} updateNote={updateNote} deleteNote={deleteNote} setActiveNoteId={setActiveNoteId} getSanitizedHtml={getSanitizedHtml} setReminder={setReminder} deleteReminder={deleteReminder} />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400 p-4">
             <DocumentDuplicateIcon className="w-24 h-24 text-slate-300 dark:text-slate-600" />
@@ -304,10 +465,31 @@ const App = () => {
   );
 };
 
-const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSanitizedHtml }) => {
+const EditorToolbar = ({ onFormat }) => {
+    const tools = [
+        { icon: BoldIcon, handler: () => onFormat('**', '**'), title: 'Жирный' },
+        { icon: ItalicIcon, handler: () => onFormat('*', '*'), title: 'Курсив' },
+        { icon: ListBulletIcon, handler: () => onFormat('\n- ', ''), title: 'Список' },
+        { icon: CodeBracketIcon, handler: () => onFormat('`', '`'), title: 'Код' },
+    ];
+
+    return (
+        <div className="flex items-center p-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+            {tools.map((tool, index) => (
+                <button key={index} onClick={tool.handler} title={tool.title} className="p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-700">
+                    <tool.icon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                </button>
+            ))}
+        </div>
+    );
+};
+
+const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSanitizedHtml, setReminder, deleteReminder }) => {
     const [isColorPickerOpen, setColorPickerOpen] = useState(false);
     const [isReminderModalOpen, setReminderModalOpen] = useState(false);
     const colorPickerRef = useRef(null);
+    const titleRef = useRef(null);
+    const contentRef = useRef(null);
     
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -318,6 +500,14 @@ const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSaniti
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    useEffect(() => {
+        if (titleRef.current) {
+            const el = titleRef.current;
+            el.style.height = 'auto';
+            el.style.height = `${el.scrollHeight}px`;
+        }
+    }, [activeNote.title, activeNote.id]);
     
     const addJournalEntry = (entryText) => {
         if (!entryText.trim()) return;
@@ -326,23 +516,49 @@ const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSaniti
         updateNote(activeNote.id, { journal: updatedJournal });
     };
 
+    const handleFormat = (startSyntax, endSyntax = '') => {
+        const textarea = contentRef.current;
+        if (!textarea) return;
+        
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = activeNote.content.substring(start, end);
+        
+        const newContent = 
+            activeNote.content.substring(0, start) +
+            startSyntax + 
+            selectedText + 
+            endSyntax + 
+            activeNote.content.substring(end);
+        
+        updateNote(activeNote.id, { content: newContent });
+
+        setTimeout(() => {
+            textarea.focus();
+            textarea.selectionStart = start + startSyntax.length;
+            textarea.selectionEnd = end + startSyntax.length;
+        }, 0);
+    };
+
     return (
         <div className="flex-1 flex flex-col min-w-0 h-full">
-            {isReminderModalOpen && <ReminderModal note={activeNote} updateNote={updateNote} onClose={() => setReminderModalOpen(false)} />}
+            {isReminderModalOpen && <ReminderModal note={activeNote} onSave={setReminder} onDelete={deleteReminder} onClose={() => setReminderModalOpen(false)} />}
             
-            <header className="flex-shrink-0 p-2 h-16 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-               <div className="flex items-center gap-2 min-w-0">
+            <header className="flex-shrink-0 p-2 h-auto md:h-16 flex flex-col md:flex-row items-start md:items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+               <div className="flex items-center gap-2 min-w-0 w-full md:w-auto">
                   <button onClick={() => setActiveNoteId(null)} className="md:hidden p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
                     <ArrowLeftIcon className="w-6 h-6"/>
                   </button>
-                  <input 
-                    type="text" 
+                  <textarea 
+                    ref={titleRef}
+                    rows="1"
                     value={activeNote.title}
                     onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
-                    className="text-lg font-semibold bg-transparent focus:outline-none focus:ring-0 border-0 p-1 w-full truncate"
+                    className="text-lg font-semibold bg-transparent focus:outline-none focus:ring-0 border-0 p-1 w-full resize-none overflow-hidden block"
+                    placeholder="Заголовок заметки"
                   />
                </div>
-               <div className="flex items-center gap-1 flex-shrink-0">
+               <div className="flex items-center gap-1 flex-shrink-0 self-end md:self-center">
                  <button onClick={() => updateNote(activeNote.id, { isFavorite: !activeNote.isFavorite })} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" title="В избранное">
                     <StarIcon filled={activeNote.isFavorite} className={`w-5 h-5 ${activeNote.isFavorite ? 'text-yellow-400' : 'text-slate-500'}`} />
                  </button>
@@ -358,7 +574,7 @@ const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSaniti
                     </button>
                     {isColorPickerOpen && <ColorPicker nodeRef={colorPickerRef} onSelectColor={(color) => { updateNote(activeNote.id, { color }); setColorPickerOpen(false); }} />}
                  </div>
-                 <button onClick={() => deleteNote(activeNote.id)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" title="Удалить">
+                 <button onClick={() => {if(confirm('Вы уверены, что хотите удалить эту заметку?')) deleteNote(activeNote.id)}} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" title="Удалить">
                    <TrashIcon className="w-5 h-5 text-slate-500" />
                  </button>
                </div>
@@ -366,7 +582,9 @@ const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSaniti
             
             <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden">
                <div className="w-full lg:w-1/2 h-1/2 lg:h-full flex flex-col border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-700">
+                  <EditorToolbar onFormat={handleFormat} />
                   <textarea
+                    ref={contentRef}
                     value={activeNote.content}
                     onChange={(e) => updateNote(activeNote.id, { content: e.target.value })}
                     className="w-full h-full p-6 bg-white dark:bg-slate-900 text-base resize-none focus:outline-none leading-relaxed"
@@ -395,6 +613,7 @@ const ColorPicker = ({ onSelectColor, nodeRef }) => {
                     onClick={() => onSelectColor(color)}
                     className={`w-6 h-6 rounded-full bg-${color}-500 hover:ring-2 ring-offset-2 dark:ring-offset-slate-800 ring-${color}-500`}
                     title={color}
+                    aria-label={`Select ${color} color`}
                 />
             ))}
         </div>
@@ -438,28 +657,124 @@ const Journal = ({ journal, onAddEntry }) => {
     );
 };
 
-const ReminderModal = ({ note, updateNote, onClose }) => {
-    // ... Reminder modal implementation ...
+const ReminderModal = ({ note, onSave, onDelete, onClose }) => {
+    const today = new Date().toISOString().split('T')[0];
+    const [type, setType] = useState(note.reminder?.type || 'single');
+    const [startDate, setStartDate] = useState(note.reminder?.startDate || today);
+    const [endDate, setEndDate] = useState(note.reminder?.endDate || '');
+    const [times, setTimes] = useState(note.reminder?.times || ['09:00']);
+    const [daysOfWeek, setDaysOfWeek] = useState(note.reminder?.daysOfWeek || []);
+
+    const handleSave = () => {
+        const reminderData = {
+            type,
+            startDate,
+            times: times.filter(t => t), // Remove empty times
+            ...(type === 'weekly' && { daysOfWeek }),
+            ...(type !== 'single' && endDate && { endDate }),
+        };
+        onSave(note, reminderData);
+        onClose();
+    };
+    
+    const handleDelete = () => {
+        onDelete(note.id);
+        onClose();
+    }
+
+    const handleDayToggle = (dayIndex) => {
+        setDaysOfWeek(prev => prev.includes(dayIndex) ? prev.filter(d => d !== dayIndex) : [...prev, dayIndex]);
+    };
+
+    const handleTimeChange = (index, value) => {
+        const newTimes = [...times];
+        newTimes[index] = value;
+        setTimes(newTimes);
+    };
+
+    const addTime = () => setTimes([...times, '']);
+    const removeTime = (index) => setTimes(times.filter((_, i) => i !== index));
+
+    const weekDays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
                  <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
                     <h3 className="text-lg font-semibold">Настроить напоминание</h3>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
-                        <XMarkIcon className="w-5 h-5" />
-                    </button>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"><XMarkIcon className="w-5 h-5" /></button>
                  </div>
-                 <div className="p-4">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">Функционал напоминаний находится в разработке и скоро будет доступен.</p>
+                 <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Тип</label>
+                        <select value={type} onChange={e => setType(e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm bg-white dark:bg-slate-700 focus:border-cyan-500 focus:ring-cyan-500 text-sm">
+                            <option value="single">Один раз</option>
+                            <option value="daily">Ежедневно</option>
+                            <option value="weekly">Еженедельно</option>
+                            <option value="monthly">Ежемесячно</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium">Дата начала</label>
+                        <input type="date" min={today} value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm bg-white dark:bg-slate-700 focus:border-cyan-500 focus:ring-cyan-500 text-sm"/>
+                    </div>
+                    {type === "weekly" && (
+                        <div>
+                            <label className="block text-sm font-medium">Дни недели</label>
+                            <div className="mt-2 grid grid-cols-7 gap-1">
+                                {weekDays.map((day, index) => (
+                                    <button key={index} onClick={() => handleDayToggle(index)} className={`p-2 text-xs font-semibold rounded-md ${daysOfWeek.includes(index) ? 'bg-cyan-600 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>{day}</button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    <div>
+                        <label className="block text-sm font-medium">Время</label>
+                        {times.map((time, index) => (
+                            <div key={index} className="flex items-center gap-2 mt-1">
+                                <input type="time" value={time} onChange={e => handleTimeChange(index, e.target.value)} className="block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm bg-white dark:bg-slate-700 focus:border-cyan-500 focus:ring-cyan-500 text-sm"/>
+                                {times.length > 1 && <button onClick={() => removeTime(index)} className="p-1 text-slate-500 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>}
+                            </div>
+                        ))}
+                         <button onClick={addTime} className="text-sm text-cyan-600 hover:text-cyan-700 mt-2">Добавить время</button>
+                    </div>
+                     {type !== 'single' && (
+                        <div>
+                            <label className="block text-sm font-medium">Дата окончания (необязательно)</label>
+                            <input type="date" min={startDate} value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm bg-white dark:bg-slate-700 focus:border-cyan-500 focus:ring-cyan-500 text-sm"/>
+                        </div>
+                    )}
                  </div>
-                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-md">Закрыть</button>
-                    <button disabled className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md opacity-50 cursor-not-allowed">Сохранить</button>
+                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-between gap-2">
+                    {note.reminder ? 
+                        <button onClick={handleDelete} className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md">Удалить</button>
+                        : <div></div>
+                    }
+                    <div className="flex justify-end gap-2">
+                        <button onClick={onClose} className="px-4 py-2 text-sm font-medium bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-md">Закрыть</button>
+                        <button onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700">Сохранить</button>
+                    </div>
                  </div>
              </div>
         </div>
     );
 };
+
+const Toast = ({ message, type, onClose }) => {
+    const colors = {
+        info: 'bg-sky-500',
+        success: 'bg-emerald-500',
+        error: 'bg-red-500',
+    };
+    return (
+        <div className={`fixed bottom-5 right-5 text-white p-4 rounded-lg shadow-lg z-50 animate-slide-in ${colors[type] || 'bg-gray-800'}`}>
+            <div className="flex items-center justify-between">
+                <span>{message}</span>
+                <button onClick={onClose} className="ml-4 p-1 rounded-full hover:bg-black/20"><XMarkIcon className="w-4 h-4"/></button>
+            </div>
+        </div>
+    );
+}
 
 const container = document.getElementById('root');
 if (container) {
