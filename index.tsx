@@ -127,6 +127,12 @@ const BoldIcon = ({ className = 'w-6 h-6' }) => <svg xmlns="http://www.w3.org/20
 const ItalicIcon = ({ className = 'w-6 h-6' }) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 15" /></svg>;
 const ListBulletIcon = ({ className = 'w-6 h-6' }) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>;
 const CodeBracketIcon = ({ className = 'w-6 h-6' }) => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" /></svg>;
+const InformationCircleIcon = ({ className = 'w-6 h-6' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+  </svg>
+);
+
 
 // --- Helper Functions ---
 function calculateNextSendAt(reminder, fromDate = new Date()) {
@@ -354,48 +360,49 @@ const App = () => {
   };
 
   const setReminder = async (note, reminderData) => {
-    if (!messaging || !db) {
-        showToast("Система уведомлений не инициализирована.", "error");
-        return;
-    }
+      if (!messaging || !db) {
+          showToast("Система уведомлений не инициализирована.", "error");
+          return false;
+      }
 
-    try {
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-             showToast("Уведомления не разрешены. Напоминание не установлено.", "error", 5000);
-             return;
-        }
-        
-        const token = await messaging.getToken();
-        
-        const firstSendAt = calculateNextSendAt(reminderData);
-        if (!firstSendAt) {
-            showToast("Не удалось рассчитать время для напоминания. Проверьте даты.", "error");
-            return;
-        }
+      if (Notification.permission !== 'granted') {
+          showToast("Сначала разрешите уведомления.", "error");
+          return false;
+      }
 
-        await db.collection('reminders').doc(note.id).set({
-            title: note.title,
-            content: note.content.substring(0, 100) || 'Посмотрите свою заметку.',
-            token: token,
-            sendAt: firstSendAt,
-            reminderData: reminderData,
-            noteId: note.id,
-        });
+      try {
+          const token = await messaging.getToken();
+          const firstSendAt = calculateNextSendAt(reminderData);
 
-        updateNote(note.id, { reminder: reminderData });
-        showToast("Напоминание успешно установлено!", "success");
+          if (!firstSendAt) {
+              showToast("Не удалось рассчитать время для напоминания. Проверьте даты.", "error");
+              return false;
+          }
 
-    } catch (err) {
-        console.error("Error setting reminder:", err);
-        let message = "Ошибка при установке напоминания.";
-        if (err.code === 'messaging/permission-denied' || Notification.permission === 'denied') {
-            message = "Уведомления заблокированы. Включите их в настройках браузера.";
-        } else {
-            message = "Не удалось получить токен. Проверьте подключение к интернету.";
-        }
-        showToast(message, "error", 5000);
-    }
+          await db.collection('reminders').doc(note.id).set({
+              title: note.title,
+              content: note.content.substring(0, 100) || 'Посмотрите свою заметку.',
+              token: token,
+              sendAt: firstSendAt,
+              reminderData: reminderData,
+              noteId: note.id,
+          });
+
+          updateNote(note.id, { reminder: reminderData });
+          showToast("Напоминание успешно установлено!", "success");
+          return true;
+
+      } catch (err) {
+          console.error("Error setting reminder:", err);
+          let message = "Ошибка при установке напоминания.";
+          if (err.code === 'messaging/permission-denied') {
+              message = "Уведомления заблокированы. Включите их в настройках браузера.";
+          } else {
+              message = "Не удалось получить токен. Проверьте подключение к интернету.";
+          }
+          showToast(message, "error", 5000);
+          return false;
+      }
   };
 
   const deleteReminder = async (noteId) => {
@@ -428,12 +435,32 @@ const App = () => {
       .sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
   }, [notes, activeCategoryId, searchTerm]);
 
-  const getSanitizedHtml = (markdown) => {
-    const rawHtml = marked.parse(markdown || '', { gfm: true, breaks: true });
-    const withTasks = rawHtml.replace(/<li>\[ \] (.*?)<\/li>/g, '<li class="task-list-item"><input type="checkbox" disabled> $1</li>')
-                             .replace(/<li>\[x\] (.*?)<\/li>/g, '<li class="task-list-item done"><input type="checkbox" checked disabled> $1</li>');
-    return DOMPurify.sanitize(withTasks);
-  };
+  const getSanitizedHtml = useCallback((markdown) => {
+      const rawHtml = marked.parse(markdown || '', { gfm: true, breaks: true });
+      const lines = (markdown || '').split('\n');
+      let taskCounter = 0;
+      
+      const enhancedHtml = rawHtml.replace(/<li class="task-list-item(.*?)"><input type="checkbox"/g, (match, classContent) => {
+          let originalLineIndex = -1;
+          let currentTask = 0;
+          for (let i = 0; i < lines.length; i++) {
+              if (/^\s*-\s\[( |x)\]/.test(lines[i])) {
+                  if (currentTask === taskCounter) {
+                      originalLineIndex = i;
+                      break;
+                  }
+                  currentTask++;
+              }
+          }
+          taskCounter++;
+          if (originalLineIndex !== -1) {
+              return `<li class="task-list-item${classContent}" data-line-index="${originalLineIndex}"><input type="checkbox"`;
+          }
+          return match; // fallback
+      }).replace(/disabled/g, '');
+
+      return DOMPurify.sanitize(enhancedHtml, { ADD_ATTR: ['data-line-index'] });
+  }, []);
   
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans overflow-hidden">
@@ -567,6 +594,7 @@ const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSaniti
     const colorPickerRef = useRef(null);
     const titleRef = useRef(null);
     const contentRef = useRef(null);
+    const previewRef = useRef(null);
     
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -590,6 +618,11 @@ const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSaniti
         if (!entryText.trim()) return;
         const newEntry = { text: entryText, timestamp: new Date().toISOString() };
         const updatedJournal = activeNote.journal ? [...activeNote.journal, newEntry] : [newEntry];
+        updateNote(activeNote.id, { journal: updatedJournal });
+    };
+
+    const deleteJournalEntry = (timestamp) => {
+        const updatedJournal = activeNote.journal.filter(entry => entry.timestamp !== timestamp);
         updateNote(activeNote.id, { journal: updatedJournal });
     };
 
@@ -620,6 +653,36 @@ const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSaniti
             }
         }, 0);
     };
+
+    const toggleTaskInContent = useCallback((lineIndex) => {
+        const lines = activeNote.content.split('\n');
+        if (lines[lineIndex]) {
+            const line = lines[lineIndex];
+            if (line.includes('- [ ]')) {
+                lines[lineIndex] = line.replace('- [ ]', '- [x]');
+            } else if (line.includes('- [x]')) {
+                lines[lineIndex] = line.replace('- [x]', '- [ ]');
+            }
+            updateNote(activeNote.id, { content: lines.join('\n') });
+        }
+    }, [activeNote.id, activeNote.content, updateNote]);
+
+    useEffect(() => {
+        const previewEl = previewRef.current;
+        if (!previewEl) return;
+
+        const handleClick = (e) => {
+            if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') {
+                const li = e.target.closest('li');
+                if (li && li.hasAttribute('data-line-index')) {
+                    const lineIndex = parseInt(li.getAttribute('data-line-index'), 10);
+                    toggleTaskInContent(lineIndex);
+                }
+            }
+        };
+        previewEl.addEventListener('click', handleClick);
+        return () => previewEl.removeEventListener('click', handleClick);
+    }, [activeNote.id, activeNote.content, toggleTaskInContent]);
 
     return (
         <div className="flex-1 flex flex-col min-w-0 h-full">
@@ -674,10 +737,11 @@ const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSaniti
                </div>
                <div className="w-full lg:w-1/2 h-1/2 lg:h-full overflow-y-auto flex flex-col">
                  <div
+                   ref={previewRef}
                    className="p-6 markdown-content flex-grow"
                    dangerouslySetInnerHTML={{ __html: getSanitizedHtml(activeNote.content) }}
                  />
-                 <Journal journal={activeNote.journal || []} onAddEntry={addJournalEntry} />
+                 <Journal journal={activeNote.journal || []} onAddEntry={addJournalEntry} onDeleteEntry={deleteJournalEntry} />
                </div>
             </div>
         </div>
@@ -701,7 +765,7 @@ const ColorPicker = ({ onSelectColor, nodeRef }) => {
     );
 };
 
-const Journal = ({ journal, onAddEntry }) => {
+const Journal = ({ journal, onAddEntry, onDeleteEntry }) => {
     const [newEntry, setNewEntry] = useState("");
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -714,12 +778,21 @@ const Journal = ({ journal, onAddEntry }) => {
             <h4 className="font-semibold mb-2">Журнал</h4>
             <div className="max-h-48 overflow-y-auto mb-2 pr-2">
                 {journal.length > 0 ? (
-                    [...journal].reverse().map((entry, index) => (
-                        <div key={index} className="text-sm py-1 border-b border-slate-200 dark:border-slate-700 last:border-b-0">
-                            <p className="text-slate-600 dark:text-slate-300">{entry.text}</p>
-                            <p className="text-xs text-slate-400">{new Date(entry.timestamp).toLocaleString()}</p>
-                        </div>
-                    ))
+                    [...journal].reverse().map((entry, index) => {
+                        const date = new Date(entry.timestamp);
+                        const displayDate = !isNaN(date.getTime()) ? date.toLocaleString() : "Неверная дата";
+                        return (
+                            <div key={entry.timestamp || index} className="group text-sm py-1.5 border-b border-slate-200 dark:border-slate-700 last:border-b-0 flex justify-between items-center">
+                                <div>
+                                    <p className="text-slate-600 dark:text-slate-300">{entry.text}</p>
+                                    <p className="text-xs text-slate-400">{displayDate}</p>
+                                </div>
+                                <button onClick={() => onDeleteEntry(entry.timestamp)} className="p-1 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity" title="Удалить запись">
+                                    <TrashIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )
+                    })
                 ) : <p className="text-sm text-slate-400">Записей нет.</p>}
             </div>
             <form onSubmit={handleSubmit} className="flex gap-2">
@@ -739,53 +812,89 @@ const Journal = ({ journal, onAddEntry }) => {
 };
 
 const ReminderModal = ({ note, onSave, onDelete, onClose }) => {
-    const today = new Date().toISOString().split('T')[0];
-    const [type, setType] = useState(note.reminder?.type || 'single');
-    const [startDate, setStartDate] = useState(note.reminder?.startDate || today);
-    const [endDate, setEndDate] = useState(note.reminder?.endDate || '');
-    const [times, setTimes] = useState(note.reminder?.times || ['09:00']);
-    const [daysOfWeek, setDaysOfWeek] = useState(note.reminder?.daysOfWeek || []);
+    const [permissionStatus, setPermissionStatus] = useState('default');
+    
+    useEffect(() => {
+        if ('Notification' in window) {
+            setPermissionStatus(Notification.permission);
+        }
+    }, []);
 
-    const handleSave = () => {
-        const reminderData = {
-            type,
-            startDate,
-            times: times.filter(t => t), // Remove empty times
-            ...(type === 'weekly' && { daysOfWeek }),
-            ...(type !== 'single' && endDate && { endDate }),
+    const requestPermission = async () => {
+        if ('Notification' in window) {
+            const permission = await Notification.requestPermission();
+            setPermissionStatus(permission);
+        }
+    };
+    
+    const PermissionRequiredView = () => (
+        <div className="p-6 flex flex-col items-center text-center">
+            <BellIcon className="w-12 h-12 text-slate-400 mb-4" />
+            <h4 className="font-semibold text-lg mb-2">Требуется разрешение</h4>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                Чтобы получать напоминания, необходимо разрешить приложению отправлять уведомления.
+            </p>
+            <button onClick={requestPermission} className="w-full bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition-colors">
+                Разрешить уведомления
+            </button>
+        </div>
+    );
+
+    const PermissionBlockedView = () => (
+        <div className="p-6 flex flex-col items-center text-center">
+            <InformationCircleIcon className="w-12 h-12 text-red-500 mb-4" />
+            <h4 className="font-semibold text-lg mb-2">Уведомления заблокированы</h4>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+                Вы заблокировали уведомления для этого сайта. Чтобы использовать напоминания, пожалуйста, измените настройки разрешений в вашем браузере.
+            </p>
+        </div>
+    );
+
+    const ReminderForm = () => {
+        const today = new Date().toISOString().split('T')[0];
+        const [type, setType] = useState(note.reminder?.type || 'single');
+        const [startDate, setStartDate] = useState(note.reminder?.startDate || today);
+        const [endDate, setEndDate] = useState(note.reminder?.endDate || '');
+        const [times, setTimes] = useState(note.reminder?.times || ['09:00']);
+        const [daysOfWeek, setDaysOfWeek] = useState(note.reminder?.daysOfWeek || []);
+    
+        const handleSave = async () => {
+            const reminderData = {
+                type,
+                startDate,
+                times: times.filter(t => t), // Remove empty times
+                ...(type === 'weekly' && { daysOfWeek }),
+                ...(type !== 'single' && endDate && { endDate }),
+            };
+            const success = await onSave(note, reminderData);
+            if(success){
+                onClose();
+            }
         };
-        onSave(note, reminderData);
-        onClose();
-    };
+        
+        const handleDelete = () => {
+            onDelete(note.id);
+            onClose();
+        }
     
-    const handleDelete = () => {
-        onDelete(note.id);
-        onClose();
-    }
-
-    const handleDayToggle = (dayIndex) => {
-        setDaysOfWeek(prev => prev.includes(dayIndex) ? prev.filter(d => d !== dayIndex) : [...prev, dayIndex]);
-    };
-
-    const handleTimeChange = (index, value) => {
-        const newTimes = [...times];
-        newTimes[index] = value;
-        setTimes(newTimes);
-    };
-
-    const addTime = () => setTimes([...times, '']);
-    const removeTime = (index) => setTimes(times.filter((_, i) => i !== index));
-
-    const weekDays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+        const handleDayToggle = (dayIndex) => {
+            setDaysOfWeek(prev => prev.includes(dayIndex) ? prev.filter(d => d !== dayIndex) : [...prev, dayIndex]);
+        };
     
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
-             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Настроить напоминание</h3>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"><XMarkIcon className="w-5 h-5" /></button>
-                 </div>
-                 <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+        const handleTimeChange = (index, value) => {
+            const newTimes = [...times];
+            newTimes[index] = value;
+            setTimes(newTimes);
+        };
+    
+        const addTime = () => setTimes([...times, '']);
+        const removeTime = (index) => setTimes(times.filter((_, i) => i !== index));
+    
+        const weekDays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+
+        return (
+            <>
+                <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Тип</label>
                         <select value={type} onChange={e => setType(e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm bg-white dark:bg-slate-700 focus:border-cyan-500 focus:ring-cyan-500 text-sm">
@@ -836,6 +945,25 @@ const ReminderModal = ({ note, onSave, onDelete, onClose }) => {
                         <button onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700">Сохранить</button>
                     </div>
                  </div>
+            </>
+        )
+    };
+    
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Настроить напоминание</h3>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"><XMarkIcon className="w-5 h-5" /></button>
+                 </div>
+                 {permissionStatus === 'granted' && <ReminderForm />}
+                 {permissionStatus === 'default' && <PermissionRequiredView />}
+                 {permissionStatus === 'denied' && <PermissionBlockedView />}
+                 {permissionStatus === 'denied' && (
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                        <button onClick={onClose} className="px-4 py-2 text-sm font-medium bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-md">Закрыть</button>
+                    </div>
+                 )}
              </div>
         </div>
     );
