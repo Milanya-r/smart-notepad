@@ -782,12 +782,12 @@ const Journal = ({ journal, onAddEntry, onDeleteEntry }) => {
                         const date = new Date(entry.timestamp);
                         const displayDate = !isNaN(date.getTime()) ? date.toLocaleString() : "Неверная дата";
                         return (
-                            <div key={entry.timestamp || index} className="group text-sm py-1.5 border-b border-slate-200 dark:border-slate-700 last:border-b-0 flex justify-between items-center">
-                                <div>
-                                    <p className="text-slate-600 dark:text-slate-300">{entry.text}</p>
+                            <div key={entry.timestamp || index} className="text-sm py-1.5 border-b border-slate-200 dark:border-slate-700 last:border-b-0 flex justify-between items-center gap-2">
+                                <div className="min-w-0">
+                                    <p className="text-slate-600 dark:text-slate-300 break-words">{entry.text}</p>
                                     <p className="text-xs text-slate-400">{displayDate}</p>
                                 </div>
-                                <button onClick={() => onDeleteEntry(entry.timestamp)} className="p-1 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity" title="Удалить запись">
+                                <button onClick={() => onDeleteEntry(entry.timestamp)} className="p-1 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0" title="Удалить запись">
                                     <TrashIcon className="w-4 h-4" />
                                 </button>
                             </div>
