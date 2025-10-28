@@ -194,6 +194,58 @@ function calculateNextSendAt(reminder, fromDate = new Date()) {
     return null;
 }
 
+const NoteListItemContent = ({ note, updateNote }) => {
+    const isChecklist = useMemo(() => /-\s\[( |x)\]/.test(note.content), [note.content]);
+
+    if (!isChecklist) {
+        return (
+            <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
+                {note.content?.substring(0, 100) + (note.content?.length > 100 ? '...' : '') || 'Нет дополнительного текста'}
+            </p>
+        );
+    }
+    
+    const toggleTask = useCallback((e, taskIndex) => {
+        e.stopPropagation(); // Prevent note from opening when clicking the task
+        const lines = note.content.split('\n');
+        const line = lines[taskIndex];
+        if (!line) return;
+        const isDone = /-\s\[x\]/.test(line);
+        lines[taskIndex] = isDone ? line.replace('[x]', '[ ]') : line.replace('[ ]', '[x]');
+        updateNote(note.id, { content: lines.join('\n') });
+    }, [note.id, note.content, updateNote]);
+    
+    const checklistItems = useMemo(() => note.content.split('\n')
+        .map((line, index) => ({ line, index }))
+        .filter(item => /-\s\[( |x)\]/.test(item.line))
+        .slice(0, 5), [note.content]);
+
+    const totalTasks = useMemo(() => note.content.split('\n').filter(item => /-\s\[( |x)\]/.test(item)).length, [note.content]);
+
+    return (
+        <div className="mt-2 space-y-1.5 pr-2">
+            {checklistItems.map(({ line, index }) => {
+                const isDone = /-\s\[x\]/.test(line);
+                const text = line.replace(/-\s\[( |x)\]\s*/, '');
+                return (
+                    <div key={index} className="flex items-center gap-2 text-sm cursor-pointer group" onClick={(e) => toggleTask(e, index)}>
+                        <div className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center ${isDone ? 'bg-cyan-600 border-cyan-600' : 'border-slate-400 dark:border-slate-500 group-hover:border-cyan-500'}`}>
+                           {isDone && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-white"><path d="M12.207 4.793a1 1 0 0 1 0 1.414l-5 5a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L6.5 9.086l4.293-4.293a1 1 0 0 1 1.414 0Z" /></svg>}
+                        </div>
+                        <span className={`flex-grow ${isDone ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                           {text}
+                        </span>
+                    </div>
+                );
+            })}
+             {totalTasks > 5 && (
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">...и еще {totalTasks - 5}</p>
+             )}
+        </div>
+    );
+};
+
+
 const App = () => {
   const [notes, setNotes] = useLocalStorage('notes', []);
   const [categories, setCategories] = useLocalStorage('categories', [{ id: 'all', name: 'Все заметки' }]);
@@ -218,6 +270,19 @@ const App = () => {
         setToast(prev => prev.show ? { show: false, message: '', type: 'info' } : prev);
     }, duration);
   };
+  
+   useEffect(() => {
+    // Proactive notification permission check
+    if (typeof firebase !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+        const permissionRequested = localStorage.getItem('notificationPermissionRequested');
+        if (!permissionRequested) {
+             setTimeout(() => {
+                showToast("Включите уведомления, чтобы получать напоминания!", "info", 6000);
+                localStorage.setItem('notificationPermissionRequested', 'true');
+            }, 8000); // After 8 seconds
+        }
+    }
+  }, []);
 
   const createNewNote = (content = '') => {
     const newNote = {
@@ -235,6 +300,7 @@ const App = () => {
     };
     setNotes(prev => [newNote, ...prev]);
     setActiveNoteId(newNote.id);
+    window.location.hash = `note=${newNote.id}`;
     if (window.innerWidth < 768) {
         setSidebarVisible(false);
     }
@@ -245,12 +311,11 @@ const App = () => {
         const hash = window.location.hash;
         if (hash.startsWith('#note=')) {
             const noteId = hash.substring(6);
-            if (notes.find(n => n.id === noteId)) {
+            if (notes.some(n => n.id === noteId)) {
                 setActiveNoteId(noteId);
             }
         } else if (hash === '#new-note') {
             createNewNote();
-            // Clear hash to allow re-triggering
             history.pushState("", document.title, window.location.pathname + window.location.search);
         }
     };
@@ -281,8 +346,8 @@ const App = () => {
     setNotes(notes.filter(note => note.id !== id));
     if (activeNoteId === id) {
       setActiveNoteId(null);
+      window.location.hash = '';
     }
-    // Also delete any associated reminder
     if (db) {
         db.collection('reminders').doc(id).delete().catch(err => console.error("Error deleting reminder from Firestore:", err));
     }
@@ -295,7 +360,12 @@ const App = () => {
     }
 
     try {
-        await messaging.requestPermission();
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+             showToast("Уведомления не разрешены. Напоминание не установлено.", "error", 5000);
+             return;
+        }
+        
         const token = await messaging.getToken();
         
         const firstSendAt = calculateNextSendAt(reminderData);
@@ -309,7 +379,8 @@ const App = () => {
             content: note.content.substring(0, 100) || 'Посмотрите свою заметку.',
             token: token,
             sendAt: firstSendAt,
-            reminderData: reminderData
+            reminderData: reminderData,
+            noteId: note.id,
         });
 
         updateNote(note.id, { reminder: reminderData });
@@ -317,7 +388,13 @@ const App = () => {
 
     } catch (err) {
         console.error("Error setting reminder:", err);
-        showToast("Ошибка при установке напоминания. Убедитесь, что уведомления разрешены.", "error", 5000);
+        let message = "Ошибка при установке напоминания.";
+        if (err.code === 'messaging/permission-denied' || Notification.permission === 'denied') {
+            message = "Уведомления заблокированы. Включите их в настройках браузера.";
+        } else {
+            message = "Не удалось получить токен. Проверьте подключение к интернету.";
+        }
+        showToast(message, "error", 5000);
     }
   };
 
@@ -430,7 +507,7 @@ const App = () => {
             {filteredNotes.map(note => (
               <div 
                 key={note.id} 
-                onClick={() => { setActiveNoteId(note.id); }}
+                onClick={() => { setActiveNoteId(note.id); window.location.hash = `note=${note.id}`;}}
                 className={`p-4 border-l-4 border-b border-slate-200 dark:border-slate-700 cursor-pointer ${activeNoteId === note.id ? 'bg-cyan-50 dark:bg-slate-800' : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'} note-color-${note.color || 'slate'}`}
               >
                   <div className="flex justify-between items-start gap-2">
@@ -438,12 +515,12 @@ const App = () => {
                     <div className="flex items-center flex-shrink-0 gap-2 text-slate-400">
                         {note.isPinned && <PinIcon rotated className="w-4 h-4" />}
                         {note.reminder && <ClockIcon className="w-4 h-4" />}
-                        <StarIcon filled={note.isFavorite} className={`w-5 h-5 ${note.isFavorite ? 'text-yellow-400' : 'text-slate-400'}`} />
+                        <button onClick={(e) => { e.stopPropagation(); updateNote(note.id, { isFavorite: !note.isFavorite }); }} className="p-1 -m-1">
+                            <StarIcon filled={note.isFavorite} className={`w-5 h-5 ${note.isFavorite ? 'text-yellow-400' : 'text-slate-400 hover:text-slate-500'}`} />
+                        </button>
                     </div>
                   </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
-                    {note.content?.substring(0, 100) + (note.content?.length > 100 ? '...' : '') || 'Нет дополнительного текста'}
-                  </p>
+                  <NoteListItemContent note={note} updateNote={updateNote} />
                   <p className="text-xs text-slate-400 mt-2">{new Date(note.updatedAt).toLocaleString()}</p>
               </div>
             ))}
@@ -535,8 +612,12 @@ const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSaniti
 
         setTimeout(() => {
             textarea.focus();
-            textarea.selectionStart = start + startSyntax.length;
-            textarea.selectionEnd = end + startSyntax.length;
+            if (selectedText) {
+                textarea.selectionStart = start + startSyntax.length;
+                textarea.selectionEnd = end + startSyntax.length;
+            } else {
+                 textarea.selectionStart = textarea.selectionEnd = start + startSyntax.length;
+            }
         }, 0);
     };
 
@@ -546,7 +627,7 @@ const Editor = ({ activeNote, updateNote, deleteNote, setActiveNoteId, getSaniti
             
             <header className="flex-shrink-0 p-2 h-auto md:h-16 flex flex-col md:flex-row items-start md:items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
                <div className="flex items-center gap-2 min-w-0 w-full md:w-auto">
-                  <button onClick={() => setActiveNoteId(null)} className="md:hidden p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
+                  <button onClick={() => { setActiveNoteId(null); window.location.hash = ''; }} className="md:hidden p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
                     <ArrowLeftIcon className="w-6 h-6"/>
                   </button>
                   <textarea 
