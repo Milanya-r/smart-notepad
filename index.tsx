@@ -371,7 +371,9 @@ const App = () => {
       }
 
       try {
-          const token = await messaging.getToken();
+          // Explicitly use the registered service worker to avoid 404 errors.
+          const registration = await navigator.serviceWorker.ready;
+          const token = await messaging.getToken({ serviceWorkerRegistration: registration });
           const firstSendAt = calculateNextSendAt(reminderData);
 
           if (!firstSendAt) {
@@ -395,7 +397,7 @@ const App = () => {
       } catch (err) {
           console.error("Error setting reminder:", err);
           let message = "Ошибка при установке напоминания.";
-          if (err.code === 'messaging/permission-denied') {
+          if (err.code === 'messaging/permission-denied' || err.code === 'messaging/failed-service-worker-registration') {
               message = "Уведомления заблокированы. Включите их в настройках браузера.";
           } else {
               message = "Не удалось получить токен. Проверьте подключение к интернету.";
